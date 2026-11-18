@@ -1,0 +1,134 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:ai_voice_dictator/services/audio_service.dart';
+import 'package:ai_voice_dictator/services/desktop_service.dart';
+import 'package:ai_voice_dictator/services/dictation_service.dart';
+import 'package:ai_voice_dictator/services/gemini_service.dart';
+import 'package:ai_voice_dictator/settings/settings_store.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
+class FlowAudio implements AudioService {
+  FlowAudio(this.file);
+  final File file;
+  bool started = false;
+  @override
+  Future<void> start({String? deviceId}) async {
+    started = true;
+  }
+
+  @override
+  Future<RecordedAudioResult> stop() async =>
+      RecordedAudioResult(file: file, durationMs: 2000);
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class FlowDesktop implements DesktopService {
+  FlowDesktop({this.changed = false});
+  final bool changed;
+  String? pasted;
+  @override
+  int captureTarget() => 123;
+  @override
+  Future<void> paste(String text, int target) async {
+    if (changed) throw StateError('Target changed');
+    expect(target, 123);
+    pasted = text;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  late Directory dir;
+  late File file;
+  late SettingsStore settings;
+  setUp(() async {
+    FlutterSecureStorage.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({});
+    dir = await Directory.systemTemp.createTemp('flow_test');
+    file = File('${dir.path}/recording.wav');
+    await file.writeAsBytes(List.filled(9000, 1));
+    settings = SettingsStore();
+    await settings.initialize(databasePath: inMemoryDatabasePath);
+    await settings.saveApiKey('test-key');
+  });
+  tearDown(() async {
+    await settings.close();
+    await dir.delete(recursive: true);
+  });
+
+  Future<void> runFlow(FlowDesktop desktop, {int status = 200}) async {
+    final audio = FlowAudio(file);
+    final client = MockClient((request) async {
+      expect(request.headers['x-goog-api-key'], 'test-key');
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      expect(body['contents'], isNotEmpty);
+      return http.Response(
+        status == 200
+            ? jsonEncode({
+                'candidates': [
+                  {
+                    'content': {
+                      'parts': [
+                        {'text': 'Hello world.'},
+                      ],
+                    },
+                  },
+                ],
+              })
+            : '{}',
+        status,
+      );
+    });
+    final service = DictationService(
+      settings,
+      audio,
+      desktop,
+      transcribe: (file, duration, key, mode, target) => GeminiDictationService(
+        key,
+        client: client,
+      ).transcribe(file, duration, mode: mode, targetLanguage: target),
+    );
+    await service.start();
+    expect(audio.started, true);
+    try {
+      await service.finish();
+    } finally {
+      client.close();
+    }
+  }
+
+  test('records, sends Gemini request, stores and pastes transcript', () async {
+    final desktop = FlowDesktop();
+    await runFlow(desktop);
+    expect(desktop.pasted, 'Hello world.');
+    expect((await settings.history()).single.text, 'Hello world.');
+    expect(await file.exists(), false);
+  });
+  test('preserves transcript in history when target changes', () async {
+    final desktop = FlowDesktop(changed: true);
+    await expectLater(runFlow(desktop), throwsStateError);
+    expect(desktop.pasted, isNull);
+    expect((await settings.history()).single.text, 'Hello world.');
+    expect(await file.exists(), false);
+  });
+  test(
+    'cleans recording without storing or pasting on API rejection',
+    () async {
+      final desktop = FlowDesktop();
+      await expectLater(runFlow(desktop, status: 403), throwsException);
+      expect(await settings.history(), isEmpty);
+      expect(desktop.pasted, isNull);
+      expect(await file.exists(), false);
+    },
+  );
+}

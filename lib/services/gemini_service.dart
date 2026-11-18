@@ -58,6 +58,8 @@ class LanguagePromptBuilder {
 }
 
 class GeminiDictationService {
+  // The public injection parameter remains named client.
+  // ignore: prefer_initializing_formals
   GeminiDictationService(this.apiKey, {http.Client? client}) : _client = client;
   final String apiKey;
   final http.Client? _client;

@@ -10,6 +10,7 @@ Install Flutter 3.47 or newer, Visual Studio with the Desktop development with C
 flutter pub get
 flutter test
 flutter analyze
+dart run custom_lint
 flutter build windows
 ```
 

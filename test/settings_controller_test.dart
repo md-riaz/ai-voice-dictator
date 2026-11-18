@@ -1,13 +1,21 @@
 import 'dart:async';
+
 import 'package:ai_voice_dictator/settings/settings_controller.dart';
 import 'package:ai_voice_dictator/settings/settings_service.dart';
 import 'package:ai_voice_dictator/settings/settings_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:ai_voice_dictator/settings/settings_view.dart';
 import 'package:record/record.dart';
 
 class FakeSettings implements SettingsStore {
+  String? savedKey;
+  @override
+  Future<void> saveApiKey(String key) async {
+    savedKey = key;
+  }
+
   @override
   Future<String> apiKey() async => 'saved-key';
   @override
@@ -34,6 +42,9 @@ class FakeSettings implements SettingsStore {
 
 class FakeSettingsService implements SettingsService {
   final permission = Completer<bool>();
+  final validation = Completer<int>();
+  @override
+  Future<int> validateKey(String key) => validation.future;
   bool closed = false;
   @override
   Future<List<InputDevice>> listDevices() async => [
@@ -52,6 +63,41 @@ class FakeSettingsService implements SettingsService {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  testWidgets('keyboard can focus the API key and save it', (tester) async {
+    final store = FakeSettings();
+    final controller = SettingsController(
+      store: store,
+      service: FakeSettingsService(),
+      onShortcutChanged: (_, _) async {},
+    );
+    await tester.pumpWidget(
+      MaterialApp(home: SettingsView(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+    final field = find.byType(TextField).first;
+    final save = find.widgetWithText(FilledButton, 'Save key');
+    Future<void> tabTo(Finder target) async {
+      for (var i = 0; i < 20; i++) {
+        final focus = FocusManager.instance.primaryFocus;
+        if (focus != null &&
+            focus is! FocusScopeNode &&
+            focus.context != null &&
+            focus.rect.contains(tester.getCenter(target))) {
+          return;
+        }
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump();
+      }
+      fail('Could not focus $target');
+    }
+
+    await tabTo(field);
+    await tester.enterText(field, 'new-key');
+    await tabTo(save);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(store.savedKey, 'new-key');
+  });
   testWidgets('settings view displays loaded controller state', (tester) async {
     final controller = SettingsController(
       store: FakeSettings(),
@@ -90,6 +136,23 @@ void main() {
       controller.onClose();
     },
   );
+  test('old validation cannot mark a newly edited key connected', () async {
+    final service = FakeSettingsService();
+    final controller = SettingsController(
+      store: FakeSettings(),
+      service: service,
+      onShortcutChanged: (_, _) async {},
+    );
+    controller.key.text = 'old-key';
+    final pending = controller.testKey();
+    controller.key.text = 'new-key';
+    controller.keyChanged('new-key');
+    service.validation.complete(200);
+    await pending;
+    expect(controller.keyStatus, 'Not checked');
+    await controller.closeResources();
+    controller.onClose();
+  });
   test('waits for microphone startup before disposing its service', () async {
     final service = FakeSettingsService();
     final controller = SettingsController(

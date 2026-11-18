@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:record/record.dart';
 import 'package:velora/velora.dart';
+
 import 'settings_service.dart';
 import 'settings_store.dart';
 
@@ -82,6 +84,12 @@ class SettingsController extends VeloraController {
     }
   }
 
+  void keyChanged(String value) {
+    _updateState(
+      () => keyStatus = value.trim().isEmpty ? 'Key missing' : 'Not checked',
+    );
+  }
+
   Future<void> saveKey() async {
     try {
       await store.saveApiKey(key.text);
@@ -110,7 +118,7 @@ class SettingsController extends VeloraController {
     });
     try {
       final statusCode = await service.validateKey(key);
-      if (!_closed) {
+      if (!_closed && this.key.text.trim() == key) {
         _updateState(
           () => keyStatus = statusCode == 200
               ? 'Connected'
@@ -118,7 +126,9 @@ class SettingsController extends VeloraController {
         );
       }
     } catch (_) {
-      if (!_closed) _updateState(() => keyStatus = 'Unable to validate key');
+      if (!_closed && this.key.text.trim() == key) {
+        _updateState(() => keyStatus = 'Unable to validate key');
+      }
     }
   }
 

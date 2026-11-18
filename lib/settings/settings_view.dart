@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import 'settings_controller.dart';
 
 class SettingsView extends StatefulWidget {
@@ -58,6 +59,10 @@ class _SettingsViewState extends State<SettingsView> {
                       ),
                     ),
                   ),
+                const Text(
+                  'Audio is sent to Google Gemini for transcription. Transcripts are saved on this device.',
+                ),
+                const SizedBox(height: 12),
                 Text(
                   'Gemini API key',
                   style: Theme.of(context).textTheme.titleMedium,
@@ -67,6 +72,7 @@ class _SettingsViewState extends State<SettingsView> {
                   obscureText: true,
                   enableSuggestions: false,
                   autocorrect: false,
+                  onChanged: controller.keyChanged,
                   decoration: const InputDecoration(labelText: 'API key'),
                 ),
                 Row(
