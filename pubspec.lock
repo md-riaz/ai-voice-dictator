@@ -33,6 +33,38 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.2.0"
+  app_links:
+    dependency: transitive
+    description:
+      name: app_links
+      sha256: "08ba88bf19d9edea33130cb71c8ced2cb982b4e00b82efef4a434d1357bc69c3"
+      url: "https://pub.dev"
+    source: hosted
+    version: "7.2.2"
+  app_links_linux:
+    dependency: transitive
+    description:
+      name: app_links_linux
+      sha256: "734aa57a2f65d1b35c3643384ccfbe668730157a08479bfa488e10a9da847853"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.5"
+  app_links_platform_interface:
+    dependency: transitive
+    description:
+      name: app_links_platform_interface
+      sha256: "7546f09a6e93f4a2df2fe2bd40a5c6c64310ac461b036d82b43033be7a59f809"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.4"
+  app_links_web:
+    dependency: transitive
+    description:
+      name: app_links_web
+      sha256: "382d32c6f486f15b1d7f5d6a37a70a481a4fc08382eef419d373169921a3e765"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.5"
   args:
     dependency: transitive
     description:
@@ -768,6 +800,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.8"
+  power_state_monitor:
+    dependency: transitive
+    description:
+      name: power_state_monitor
+      sha256: "10520175ac7108a90eef6d6e294a388727beedbe899290ede3c560f0641ac14f"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.1.2"
   process:
     dependency: transitive
     description:
@@ -1057,8 +1097,17 @@ packages:
     dependency: "direct main"
     description:
       path: "packages/velora"
-      ref: "5db25ef02eae447b300ec73c6a49e5ea8e905bcf"
-      resolved-ref: "5db25ef02eae447b300ec73c6a49e5ea8e905bcf"
+      ref: a81685390e68958ea233798b52b61e6d66bd175f
+      resolved-ref: a81685390e68958ea233798b52b61e6d66bd175f
+      url: "https://github.com/md-riaz/velora-flutter.git"
+    source: git
+    version: "0.0.1"
+  velora_desktop:
+    dependency: "direct main"
+    description:
+      path: "packages/velora_desktop"
+      ref: a81685390e68958ea233798b52b61e6d66bd175f
+      resolved-ref: a81685390e68958ea233798b52b61e6d66bd175f
       url: "https://github.com/md-riaz/velora-flutter.git"
     source: git
     version: "0.0.1"
@@ -1066,8 +1115,8 @@ packages:
     dependency: "direct dev"
     description:
       path: "packages/velora_lints"
-      ref: "5db25ef02eae447b300ec73c6a49e5ea8e905bcf"
-      resolved-ref: "5db25ef02eae447b300ec73c6a49e5ea8e905bcf"
+      ref: a81685390e68958ea233798b52b61e6d66bd175f
+      resolved-ref: a81685390e68958ea233798b52b61e6d66bd175f
       url: "https://github.com/md-riaz/velora-flutter.git"
     source: git
     version: "0.0.1"
@@ -1075,8 +1124,8 @@ packages:
     dependency: "direct main"
     description:
       path: "packages/velora_ui"
-      ref: "5db25ef02eae447b300ec73c6a49e5ea8e905bcf"
-      resolved-ref: "5db25ef02eae447b300ec73c6a49e5ea8e905bcf"
+      ref: a81685390e68958ea233798b52b61e6d66bd175f
+      resolved-ref: a81685390e68958ea233798b52b61e6d66bd175f
       url: "https://github.com/md-riaz/velora-flutter.git"
     source: git
     version: "0.0.1"
@@ -1128,6 +1177,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.2"
+  windows_single_instance:
+    dependency: transitive
+    description:
+      name: windows_single_instance
+      sha256: "8f464db5121d7e12ce8323ef170adc76ad18678057b63b1218932fe17db05642"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.2.0"
   xdg_directories:
     dependency: transitive
     description:

@@ -47,10 +47,8 @@ class LanguagePromptBuilder {
     String targetLanguage = 'English',
   }) {
     final directive = switch (mode) {
-      DictationLanguageMode.auto =>
-        'Automatically identify the spoken language and transcribe in that language. Preserve transitions between languages.',
-      DictationLanguageMode.codeSwitching =>
-        'Write colloquial Bengali in natural Bengali script and preserve English technical, programming and business terms in their original English alphabet. Never translate technical terms.',
+      DictationLanguageMode.auto => 'Automatically identify the spoken language and transcribe in that language. Preserve transitions between languages.',
+      DictationLanguageMode.codeSwitching => 'Write colloquial Bengali in natural Bengali script and preserve English technical, programming and business terms in their original English alphabet. Never translate technical terms.',
       DictationLanguageMode.translate =>
         'Translate the spoken audio into fluent, natural $targetLanguage. Return only the translated text.',
     };
@@ -65,7 +63,7 @@ class GeminiDictationService {
   final String apiKey;
   final http.Client? _client;
   static const maxAudioBytes = 12 * 1024 * 1024;
-  static const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+  static const models = ['gemini-3.1-flash-lite', 'gemini-3.5-flash'];
 
   Future<String> transcribe(
     File audioFile,
@@ -152,11 +150,13 @@ class GeminiDictationService {
                 .timeout(const Duration(seconds: 25));
           } on TimeoutException {
             debugPrint('Gemini request timed out for $model');
-            failure ??= 'Gemini timed out. Check your internet connection and retry.';
+            failure ??=
+                'Gemini timed out. Check your internet connection and retry.';
             break;
           } on http.ClientException {
             debugPrint('Gemini network connection failed for $model');
-            failure ??= 'Could not reach Gemini. Check your internet connection.';
+            failure ??=
+                'Could not reach Gemini. Check your internet connection.';
             break;
           }
           debugPrint('Gemini $model HTTP ${response.statusCode}');
@@ -188,11 +188,13 @@ class GeminiDictationService {
             break;
           }
           if (response.statusCode == 404) {
-            failure ??= 'The configured Gemini model is unavailable (HTTP 404).';
+            failure ??=
+                'The configured Gemini model is unavailable (HTTP 404).';
             break;
           }
           if (response.statusCode == 503 || response.statusCode == 500) {
-            failure ??= 'Gemini is temporarily unavailable (HTTP ${response.statusCode}).';
+            failure ??=
+                'Gemini is temporarily unavailable (HTTP ${response.statusCode}).';
             if (attempt == 0) {
               await Future<void>.delayed(const Duration(milliseconds: 600));
             }

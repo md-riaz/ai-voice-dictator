@@ -38,13 +38,18 @@ dependencies:
   velora:
     git:
       url: https://github.com/md-riaz/velora-flutter.git
-      ref: 5db25ef02eae447b300ec73c6a49e5ea8e905bcf
+      ref: a81685390e68958ea233798b52b61e6d66bd175f
       path: packages/velora
   velora_ui:
     git:
       url: https://github.com/md-riaz/velora-flutter.git
-      ref: 5db25ef02eae447b300ec73c6a49e5ea8e905bcf
+      ref: a81685390e68958ea233798b52b61e6d66bd175f
       path: packages/velora_ui
+  velora_desktop:
+    git:
+      url: https://github.com/md-riaz/velora-flutter.git
+      ref: a81685390e68958ea233798b52b61e6d66bd175f
+      path: packages/velora_desktop
   record: ^7.2.0
   path_provider: ^2.1.6
   path: ^1.9.1
@@ -73,7 +78,7 @@ dev_dependencies:
   velora_lints:
     git:
       url: https://github.com/md-riaz/velora-flutter.git
-      ref: 5db25ef02eae447b300ec73c6a49e5ea8e905bcf
+      ref: a81685390e68958ea233798b52b61e6d66bd175f
       path: packages/velora_lints
 
 # For information on the generic Dart part of this file, see the

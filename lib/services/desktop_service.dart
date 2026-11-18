@@ -2,6 +2,7 @@
 // ignore_for_file: deprecated_member_use
 import 'dart:ffi' hide Size;
 import 'dart:io';
+import 'dart:async';
 
 import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
@@ -10,6 +11,24 @@ import 'package:hotkey_manager/hotkey_manager.dart';
 import 'package:nativeapi/nativeapi.dart' as nativeapi;
 import 'package:tray_manager/legacy.dart';
 import 'package:window_manager/legacy.dart';
+import 'package:velora_desktop/velora_desktop.dart';
+
+class _TrayPort implements VeloraDesktopTrayPort {
+  _TrayPort(this.owner);
+  final DesktopService owner;
+  @override
+  Future<bool> setup({
+    required VeloraTrayConfig config,
+    required void Function() onActivate,
+    required void Function() onShow,
+    required void Function() onQuit,
+  }) => owner._setupTray();
+  @override
+  Future<void> dispose() async {
+    trayManager.removeListener(owner);
+    await trayManager.destroy();
+  }
+}
 
 final class _MouseInput extends Struct {
   @Int32()
@@ -50,7 +69,7 @@ final class _Input extends Struct {
   external _InputUnion data;
 }
 
-class DesktopService with TrayListener, WindowListener {
+class DesktopService with TrayListener {
   DesktopService({
     required this.onHotkey,
     required this.onTranslate,
@@ -73,6 +92,8 @@ class DesktopService with TrayListener, WindowListener {
   String? _primary;
   String? _translation;
   bool hotkeysAvailable = false;
+  late final VeloraDesktopCoordinator _desktop;
+  StreamSubscription<VeloraDesktopEvent>? _desktopEvents;
 
   Future<void> initialize() async {
     if (!Platform.isWindows) throw UnsupportedError('Windows is required.');
@@ -85,8 +106,30 @@ class DesktopService with TrayListener, WindowListener {
     debugPrint(
       'Global shortcuts: ${hotkeysAvailable ? 'ready' : 'unavailable'}',
     );
-    windowManager.addListener(this);
-    await windowManager.setPreventClose(true);
+    _desktop = VeloraDesktopCoordinator(
+      config: const VeloraDesktopConfig(
+        appId: 'com.mdriaz.aivoicedictator',
+        appName: 'AI Voice Dictator',
+        tray: VeloraTrayConfig(iconAsset: 'assets/tray_icon.ico'),
+        closeToTray: true,
+        singleInstance: false,
+      ),
+      window: WindowManagerAdapter(),
+      tray: _TrayPort(this),
+    );
+    await _desktop.initialize();
+    if (!_desktop.capabilities.window || !_desktop.capabilities.tray) {
+      throw StateError('Desktop window or tray could not be initialized.');
+    }
+    _desktopEvents = _desktop.events.listen((event) {
+      if (event.type == VeloraDesktopEventType.closeRequested &&
+          event.data['hidden'] == true) {
+        onSettingsClosed();
+      }
+    });
+  }
+
+  Future<bool> _setupTray() async {
     trayManager.addListener(this);
     await trayManager.setIcon('assets/tray_icon.ico');
     await trayManager.setToolTip('AI Voice Dictator');
@@ -100,7 +143,10 @@ class DesktopService with TrayListener, WindowListener {
         ],
       ),
     );
-    trayManager.trayIcon?.setContextMenuTrigger(nativeapi.ContextMenuTrigger.rightClicked);
+    trayManager.trayIcon?.setContextMenuTrigger(
+      nativeapi.ContextMenuTrigger.rightClicked,
+    );
+    return trayManager.trayIcon != null;
   }
 
   Future<void> setRecording(bool active) =>
@@ -220,7 +266,11 @@ class DesktopService with TrayListener, WindowListener {
   }
 
   Future<void> updateHud(String state, String message, int seconds) =>
-      _keyChannel.invokeMethod<void>('updateHud', {'state': state, 'message': message, 'seconds': seconds});
+      _keyChannel.invokeMethod<void>('updateHud', {
+        'state': state,
+        'message': message,
+        'seconds': seconds,
+      });
 
   Future<void> showHud() => _keyChannel.invokeMethod<void>('showHud');
 
@@ -237,10 +287,9 @@ class DesktopService with TrayListener, WindowListener {
     await windowManager.focus();
   }
 
-  @override
   void onWindowClose() {
     onSettingsClosed();
-    windowManager.hide();
+    _desktop.hide();
   }
 
   @override
@@ -259,8 +308,7 @@ class DesktopService with TrayListener, WindowListener {
 
   Future<void> dispose() async {
     await _clearShortcuts();
-    trayManager.removeListener(this);
-    windowManager.removeListener(this);
-    await trayManager.destroy();
+    await _desktopEvents?.cancel();
+    await _desktop.dispose();
   }
 }

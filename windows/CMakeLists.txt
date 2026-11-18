@@ -4,7 +4,7 @@ project(ai_voice_dictator LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
-set(BINARY_NAME "ai_voice_dictator")
+set(BINARY_NAME "AI-Voice-Dictator")
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.
