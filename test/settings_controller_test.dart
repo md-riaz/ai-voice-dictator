@@ -45,7 +45,11 @@ class FakeSettingsService implements SettingsService {
   final permission = Completer<bool>();
   final validation = Completer<int>();
   @override
-  Future<int> validateKey(String key) => validation.future;
+  Future<int> validateKey(String key) {
+    testedKey = key;
+    return validation.future;
+  }
+  String? testedKey;
   bool closed = false;
   @override
   Future<List<InputDevice>> listDevices() async => [
@@ -164,6 +168,22 @@ void main() {
       controller.onClose();
     },
   );
+  test('saving a key starts validation automatically', () async {
+    final store = FakeSettings();
+    final service = FakeSettingsService();
+    final controller = SettingsController(store: store, service: service, onShortcutChanged: (_, _) async {});
+    controller.key.text = 'new-key';
+    final pending = controller.saveKey();
+    await Future<void>.delayed(Duration.zero);
+    expect(store.savedKey, 'new-key');
+    expect(service.testedKey, 'new-key');
+    expect(controller.keyStatus, 'Checking…');
+    service.validation.complete(200);
+    await pending;
+    expect(controller.keyStatus, 'Connected');
+    await controller.closeResources();
+    controller.onClose();
+  });
   test('old validation cannot mark a newly edited key connected', () async {
     final service = FakeSettingsService();
     final controller = SettingsController(

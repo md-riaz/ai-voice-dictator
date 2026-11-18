@@ -92,12 +92,15 @@ class SettingsController extends VeloraController {
 
   Future<void> saveKey() async {
     try {
-      await store.saveApiKey(key.text);
-      if (!_closed) {
-        _updateState(() {
-          keyStatus = key.text.trim().isEmpty ? 'Key missing' : 'Not checked';
-          pageError = null;
-        });
+      final savedKey = key.text.trim();
+      await store.saveApiKey(savedKey);
+      if (!_closed && key.text.trim() == savedKey) {
+        _updateState(() => pageError = null);
+        if (savedKey.isEmpty) {
+          _updateState(() => keyStatus = 'Key missing');
+        } else {
+          await testKey();
+        }
       }
     } catch (_) {
       if (!_closed) {
