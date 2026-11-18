@@ -9,6 +9,7 @@ import 'services/dictation_service.dart';
 import 'settings/settings_controller.dart';
 import 'settings/settings_service.dart';
 import 'settings/settings_store.dart';
+import 'ui/floating_hud.dart';
 
 // ignore_for_file: deprecated_member_use
 class AppModule {
@@ -25,9 +26,15 @@ class AppModule {
     late final DictationController controller;
     late final AppModule module;
     var exiting = false;
+    Future<void> keyEvents = Future.value();
     final desktop = DesktopService(
       onHotkey: () => unawaited(controller.toggle()),
       onTranslate: () => unawaited(controller.toggle(translate: true)),
+      onKeyEvent: (event) {
+        keyEvents = keyEvents
+            .then((_) => controller.handleShortcut(event))
+            .catchError((Object error) {});
+      },
       onSettings: () => unawaited(controller.showSettings()),
       onSettingsClosed: () => unawaited(module.closeSettings()),
       onPause: () => controller.paused = !controller.paused,
@@ -46,20 +53,21 @@ class AppModule {
       },
     );
     controller = DictationController(
-      DictationService(settings, AudioService(), desktop),
+      DictationService(
+        settings,
+        AudioService(),
+        desktop,
+        canPaste: () =>
+            !controller.settingsVisible.value || controller.playgroundFocused,
+      ),
       settings,
       desktop,
     );
     module = AppModule._(settings, desktop, controller);
     await desktop.initialize();
-    try {
-      await desktop.registerShortcuts(
-        settings.shortcut(),
-        settings.translationShortcut(),
-      );
-    } catch (_) {
+    if (!desktop.hotkeysAvailable) {
       module.startupError =
-          'Could not register the saved shortcuts. Choose available shortcuts below.';
+          'Global shortcuts could not be started. Restart the app.';
     }
     return module;
   }
@@ -69,7 +77,12 @@ class AppModule {
         store: settings,
         service: SettingsService(),
         onShortcutChanged: desktop.registerShortcuts,
-        initialError: startupError,
+        initialError:
+            startupError ??
+            (controller.hud.value == HudState.error &&
+                    controller.message.value.isNotEmpty
+                ? controller.message.value
+                : null),
       );
 
   Future<void> closeSettings() async {
@@ -77,6 +90,7 @@ class AppModule {
       await _activeSettings?.closeResources();
     } finally {
       _activeSettings = null;
+      controller.playgroundFocused = false;
       controller.settingsVisible.value = false;
     }
   }

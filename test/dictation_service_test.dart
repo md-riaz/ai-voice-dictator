@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:ai_voice_dictator/services/audio_service.dart';
 import 'package:ai_voice_dictator/services/desktop_service.dart';
 import 'package:ai_voice_dictator/services/dictation_service.dart';
@@ -52,6 +53,24 @@ class FakeDesktop implements DesktopService {
 }
 
 void main() {
+  test('keeps transcript in history when playground focus is lost', () async {
+    final dir = await Directory.systemTemp.createTemp('dictation_test');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = File('${dir.path}/audio.wav');
+    await file.writeAsBytes(List.filled(9000, 1));
+    final settings = FakeSettings();
+    final service = DictationService(
+      settings,
+      FakeAudio(file),
+      FakeDesktop(settings.events),
+      canPaste: () => false,
+      transcribe: (file, seconds, key, mode, target) async => 'Hello',
+    );
+    await service.start();
+    await expectLater(service.finish(), throwsStateError);
+    expect(settings.events, ['history:Hello']);
+    expect(await file.exists(), false);
+  });
   test('saves transcript before paste and deletes temporary audio', () async {
     final dir = await Directory.systemTemp.createTemp('dictation_test');
     addTearDown(() => dir.delete(recursive: true));

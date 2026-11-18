@@ -9,6 +9,9 @@ import 'package:flutter/services.dart';
 import 'package:velora_ui/velora_ui.dart' as ui;
 import 'package:ai_voice_dictator/settings/settings_view.dart';
 import 'package:record/record.dart';
+import 'package:ai_voice_dictator/dictation_controller.dart';
+import 'package:ai_voice_dictator/services/desktop_service.dart';
+import 'package:ai_voice_dictator/services/dictation_service.dart';
 
 class FakeSettings implements SettingsStore {
   String? savedKey;
@@ -49,6 +52,7 @@ class FakeSettingsService implements SettingsService {
     testedKey = key;
     return validation.future;
   }
+
   String? testedKey;
   bool closed = false;
   @override
@@ -66,8 +70,71 @@ class FakeSettingsService implements SettingsService {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+class PlaygroundDictation implements DictationService {
+  bool started = false;
+  @override
+  Future<void> start({bool translate = false}) async {
+    started = true;
+  }
+
+  @override
+  Future<void> cancel() async {}
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class PlaygroundDesktop implements DesktopService {
+  @override
+  Future<void> showHud() async {}
+  @override
+  Future<void> hideHud() async {}
+  @override
+  Future<void> setRecording(bool active) async {}
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  testWidgets('playground focus allows a dictation shortcut', (tester) async {
+    final settings = FakeSettings();
+    final service = PlaygroundDictation();
+    final dictation = DictationController(
+      service,
+      settings,
+      PlaygroundDesktop(),
+    );
+    dictation.settingsVisible.value = true;
+    final controller = SettingsController(
+      store: settings,
+      service: FakeSettingsService(),
+      onShortcutChanged: (_, _) async {},
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ui.VeloraTheme.light(),
+        home: SettingsView(controller: controller, dictation: dictation),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final field = find.byWidgetPredicate(
+      (w) =>
+          w is TextField && w.decoration?.labelText == 'Dictation playground',
+    );
+    await tester.scrollUntilVisible(
+      field,
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.ensureVisible(field);
+    await tester.pumpAndSettle();
+    await tester.tap(field);
+    await tester.pump();
+    expect(dictation.playgroundFocused, true);
+    await dictation.handleShortcut('holdStart');
+    expect(service.started, true);
+    await dictation.handleShortcut('cancel');
+  });
   testWidgets('settings renders at narrow width with the dark Velora theme', (
     tester,
   ) async {
@@ -171,7 +238,11 @@ void main() {
   test('saving a key starts validation automatically', () async {
     final store = FakeSettings();
     final service = FakeSettingsService();
-    final controller = SettingsController(store: store, service: service, onShortcutChanged: (_, _) async {});
+    final controller = SettingsController(
+      store: store,
+      service: service,
+      onShortcutChanged: (_, _) async {},
+    );
     controller.key.text = 'new-key';
     final pending = controller.saveKey();
     await Future<void>.delayed(Duration.zero);

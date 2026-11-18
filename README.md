@@ -18,6 +18,6 @@ The application executable and required runtime files are in `build/windows/x64/
 
 ## Use
 
-On first launch, save a Gemini API key in Settings. Select a microphone and test it. Close Settings to keep the app in the system tray. Press Ctrl+Space once to start recording and again to stop and insert the result into the original foreground window. Ctrl+Alt+Space starts translation to the configured target language. Both shortcuts can be changed in Settings. Use the tray menu to open Settings, pause/resume, or exit.
+On first launch, save a Gemini API key in Settings. Select a microphone and test it. Close Settings to keep the app in the system tray. Hold Ctrl+Win to dictate, or Ctrl+Win+Alt to translate, and release to finish. Press Ctrl+Win+Space to start hands-free and press it again to finish. Esc cancels recording. Use the tray menu to open Settings, pause/resume, or exit.
 
 Gemini can make mistakes. Review inserted text, especially numbers and technical terms. Transcripts remain in local history; recordings are temporary and deleted after processing. If the active window changes while processing, the app refuses to paste; copy the transcript from history.

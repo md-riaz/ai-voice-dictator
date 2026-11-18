@@ -43,6 +43,8 @@ class TestDesktop extends DesktopService {
   @override
   Future<void> hideHud() async {}
   @override
+  Future<void> setRecording(bool active) async {}
+  @override
   Future<void> dispose() async {}
 }
 

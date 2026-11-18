@@ -57,6 +57,7 @@ class DesktopService with TrayListener, WindowListener {
     required this.onSettingsClosed,
     required this.onPause,
     required this.onExit,
+    this.onKeyEvent,
   });
   final VoidCallback onHotkey;
   final VoidCallback onTranslate;
@@ -64,15 +65,26 @@ class DesktopService with TrayListener, WindowListener {
   final VoidCallback onSettingsClosed;
   final VoidCallback onPause;
   final VoidCallback onExit;
+  final void Function(String)? onKeyEvent;
+  static const _keyChannel = MethodChannel('ai_voice_dictator/keys');
   final _user32 = DynamicLibrary.open('user32.dll');
   final List<HotKey> _shortcuts = [];
   String? _primary;
   String? _translation;
   bool _settingsVisible = false;
+  bool hotkeysAvailable = false;
 
   Future<void> initialize() async {
     if (!Platform.isWindows) throw UnsupportedError('Windows is required.');
     await windowManager.ensureInitialized();
+    _keyChannel.setMethodCallHandler((call) async {
+      onKeyEvent?.call(call.method);
+    });
+    hotkeysAvailable =
+        await _keyChannel.invokeMethod<bool>('available') == true;
+    debugPrint(
+      'Global shortcuts: ${hotkeysAvailable ? 'ready' : 'unavailable'}',
+    );
     windowManager.addListener(this);
     await windowManager.setPreventClose(true);
     trayManager.addListener(this);
@@ -89,6 +101,9 @@ class DesktopService with TrayListener, WindowListener {
       ),
     );
   }
+
+  Future<void> setRecording(bool active) =>
+      _keyChannel.invokeMethod<void>('setRecording', active);
 
   HotKey _parseShortcut(String value) {
     final parts = value.toLowerCase().split('+').map((e) => e.trim()).toSet();
@@ -155,6 +170,21 @@ class DesktopService with TrayListener, WindowListener {
 
   Future<void> paste(String text, int target) async {
     if (text.isEmpty) throw StateError('No text to paste.');
+    final keyState = _user32
+        .lookupFunction<Int16 Function(Int32), int Function(int)>(
+          'GetAsyncKeyState',
+        );
+    bool modifiersHeld() =>
+        [0x11, 0x12, 0x5b, 0x5c].any((key) => (keyState(key) & 0x8000) != 0);
+    final deadline = DateTime.now().add(const Duration(seconds: 2));
+    while (modifiersHeld() && DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+    }
+    if (modifiersHeld()) {
+      throw StateError(
+        'Release the shortcut keys. Copy the transcript from history.',
+      );
+    }
     if (target == 0 || captureTarget() != target) {
       throw StateError(
         'The target window changed. Copy the transcript from history.',

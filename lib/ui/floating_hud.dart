@@ -63,6 +63,7 @@ class FloatingHudOverlay extends StatelessWidget {
                         color: Colors.white,
                         fontWeight: FontWeight.w600,
                       ),
+                      maxLines: state == HudState.error ? 3 : 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),

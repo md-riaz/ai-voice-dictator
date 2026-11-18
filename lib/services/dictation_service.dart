@@ -6,14 +6,13 @@ import 'audio_service.dart';
 import 'desktop_service.dart';
 import 'gemini_service.dart';
 
-typedef Transcribe =
-    Future<String> Function(
-      File file,
-      int durationSeconds,
-      String apiKey,
-      DictationLanguageMode mode,
-      String targetLanguage,
-    );
+typedef Transcribe = Future<String> Function(
+  File file,
+  int durationSeconds,
+  String apiKey,
+  DictationLanguageMode mode,
+  String targetLanguage,
+);
 
 class DictationService {
   DictationService(
@@ -21,11 +20,13 @@ class DictationService {
     this.audio,
     this.desktop, {
     Transcribe? transcribe,
+    this.canPaste,
   }) : _transcribe = transcribe ?? _transcribeWithGemini;
   final SettingsStore settings;
   final AudioService audio;
   final DesktopService desktop;
   final Transcribe _transcribe;
+  final bool Function()? canPaste;
   int _target = 0;
   bool _translate = false;
 
@@ -35,9 +36,9 @@ class DictationService {
     String key,
     DictationLanguageMode mode,
     String target,
-  ) => GeminiDictationService(
-    key,
-  ).transcribe(file, duration, mode: mode, targetLanguage: target);
+  ) =>
+      GeminiDictationService(key)
+          .transcribe(file, duration, mode: mode, targetLanguage: target);
 
   Future<void> start({bool translate = false}) async {
     if ((await settings.apiKey()).isEmpty) {
@@ -74,6 +75,11 @@ class DictationService {
         text,
         Duration(milliseconds: recording.durationMs),
       );
+      if (canPaste != null && !canPaste!()) {
+        throw StateError(
+          'The input focus changed. Copy the transcript from history.',
+        );
+      }
       await desktop.paste(text, _target);
     } finally {
       if (await recording.file.exists()) await recording.file.delete();

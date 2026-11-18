@@ -1,18 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:velora_ui/velora_ui.dart';
+import 'package:velora/velora.dart' as vx;
 
+import '../dictation_controller.dart';
+import '../ui/floating_hud.dart';
 import 'settings_controller.dart';
 
 class SettingsView extends StatefulWidget {
-  const SettingsView({super.key, required this.controller, this.onClose});
+  const SettingsView({
+    super.key,
+    required this.controller,
+    this.onClose,
+    this.dictation,
+  });
   final SettingsController controller;
   final VoidCallback? onClose;
+  final DictationController? dictation;
   @override
   State<SettingsView> createState() => _SettingsViewState();
 }
 
 class _SettingsViewState extends State<SettingsView> {
+  final _playground = TextEditingController();
   SettingsController get controller => widget.controller;
   void _refresh() {
     if (mounted) setState(() {});
@@ -27,6 +37,8 @@ class _SettingsViewState extends State<SettingsView> {
 
   @override
   void dispose() {
+    if (widget.dictation != null) widget.dictation!.playgroundFocused = false;
+    _playground.dispose();
     controller.removeListener(_refresh);
     controller.onClose();
     super.dispose();
@@ -36,16 +48,6 @@ class _SettingsViewState extends State<SettingsView> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    const shortcuts = [
-      'Ctrl+Space',
-      'Ctrl+Alt+Space',
-      'Ctrl+Shift+Space',
-      'Ctrl+Win+Space',
-      'Ctrl+Alt+Shift+Space',
-      'Ctrl+Alt+Win+Space',
-      'Ctrl+Shift+Win+Space',
-      'Ctrl+Alt+Shift+Win+Space',
-    ];
     final decoration = InputDecorationTheme.of(context);
     return Scaffold(
       backgroundColor: colors.surfaceContainerLowest,
@@ -184,29 +186,71 @@ class _SettingsViewState extends State<SettingsView> {
                               context,
                               Icons.keyboard_rounded,
                               'Shortcuts & language',
-                              'Choose how you start dictation and translation.',
+                              'Global shortcuts work in other applications.',
                             ),
                             const SizedBox(height: 20),
-                            _shortcut(
-                              'Dictation shortcut',
-                              controller.shortcut,
-                              shortcuts,
-                              (value) => controller.changeShortcuts(
-                                value,
-                                controller.translationShortcut,
+                            const Text(
+                              'Ctrl + Win  ·  Hold to dictate; release to finish',
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Ctrl + Win + Alt  ·  Hold to translate; release to finish',
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Ctrl + Win + Space  ·  Press to start or finish hands-free',
+                            ),
+                            const SizedBox(height: 8),
+                            const Text('Esc  ·  Cancel recording'),
+                            const SizedBox(height: 14),
+                            Text(
+                              'Try dictation',
+                              style: theme.textTheme.titleSmall,
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Click in the box, hold Ctrl + Win, speak, then release.',
+                            ),
+                            const SizedBox(height: 8),
+                            Focus(
+                              onFocusChange: (focused) {
+                                if (widget.dictation != null) {
+                                  widget.dictation!.playgroundFocused = focused;
+                                }
+                              },
+                              child: TextField(
+                                controller: _playground,
+                                maxLines: 3,
+                                decoration: const InputDecoration(
+                                  labelText: 'Dictation playground',
+                                  hintText: 'Your words appear here',
+                                  border: OutlineInputBorder(),
+                                ),
                               ),
                             ),
-                            const SizedBox(height: 14),
-                            _shortcut(
-                              'Translation shortcut',
-                              controller.translationShortcut,
-                              shortcuts,
-                              (value) => controller.changeShortcuts(
-                                controller.shortcut,
-                                value,
-                              ),
-                            ),
-                            const SizedBox(height: 14),
+                            if (widget.dictation != null)
+                              vx.Obx(() {
+                                final dictation = widget.dictation!;
+                                final status = switch (dictation.hud.value) {
+                                  HudState.listening => 'Listening…',
+                                  HudState.writing => 'Writing…',
+                                  HudState.success => 'Inserted',
+                                  HudState.error => dictation.message.value,
+                                };
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: Text(
+                                    dictation.recording.value ||
+                                            dictation.hud.value ==
+                                                HudState.writing ||
+                                            dictation.hud.value ==
+                                                HudState.error
+                                        ? status
+                                        : 'Ready',
+                                  ),
+                                );
+                              }),
+                            const SizedBox(height: 20),
                             VeloraSelect<String>(
                               label: 'Language mode',
                               value: controller.language,
@@ -398,28 +442,4 @@ class _SettingsViewState extends State<SettingsView> {
       ],
     );
   }
-
-  Widget _shortcut(
-    String label,
-    String value,
-    List<String> options,
-    ValueChanged<String> onChanged,
-  ) => InputDecorator(
-    decoration: InputDecoration(
-      labelText: label,
-      border: const OutlineInputBorder(),
-    ),
-    child: DropdownButtonHideUnderline(
-      child: DropdownButton<String>(
-        value: value,
-        isExpanded: true,
-        items: options
-            .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-            .toList(),
-        onChanged: (s) {
-          if (s != null) onChanged(s);
-        },
-      ),
-    ),
-  );
 }

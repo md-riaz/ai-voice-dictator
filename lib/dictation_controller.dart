@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:velora/velora.dart';
 
 import 'guardrails.dart';
@@ -17,15 +18,73 @@ class DictationController extends VeloraController {
   final message = ''.obs;
   final seconds = 0.obs;
   final settingsVisible = false.obs;
+  final recording = false.obs;
+  bool playgroundFocused = false;
   bool paused = false;
   bool _busy = false;
   bool _closing = false;
   Completer<void>? _operationDone;
   bool _listening = false;
+  String? _mode;
   Timer? _timer;
 
+  Future<void> handleShortcut(String event) async {
+    if (_closing) return;
+    switch (event) {
+      case 'holdStart':
+      case 'translationStart':
+        if (_mode != null ||
+            paused ||
+            (settingsVisible.value && !playgroundFocused)) {
+          return;
+        }
+        await toggle(translate: event == 'translationStart');
+        if (_listening) _mode = 'hold';
+      case 'switchTranslation':
+        if (_mode != 'hold') return;
+        await cancel();
+        await toggle(translate: true);
+        if (_listening) _mode = 'hold';
+      case 'holdStop':
+        if (_mode != 'hold') return;
+        _mode = null;
+        await toggle();
+      case 'handsFree':
+        if (_mode == 'hold') {
+          _mode = 'handsFree';
+        } else if (_mode == 'handsFree') {
+          _mode = null;
+          await toggle();
+        } else if (!paused && (!settingsVisible.value || playgroundFocused)) {
+          await toggle();
+          if (_listening) _mode = 'handsFree';
+        }
+      case 'cancel':
+        await cancel();
+    }
+  }
+
+  Future<void> cancel() async {
+    if (!_listening) return;
+    _listening = false;
+    recording.value = false;
+    _mode = null;
+    _timer?.cancel();
+    try {
+      await dictation.cancel();
+    } catch (_) {
+      // A cancelled recording can be too short to normalize.
+    } finally {
+      await desktop.setRecording(false);
+      await desktop.hideHud();
+    }
+  }
+
   Future<void> toggle({bool translate = false}) async {
-    if (_closing || (paused && !_listening) || _busy || settingsVisible.value) {
+    if (_closing ||
+        (paused && !_listening) ||
+        _busy ||
+        (settingsVisible.value && !playgroundFocused)) {
       return;
     }
     _busy = true;
@@ -34,6 +93,8 @@ class DictationController extends VeloraController {
       if (!_listening) {
         await dictation.start(translate: translate);
         _listening = true;
+        recording.value = true;
+        await desktop.setRecording(true);
         seconds.value = 0;
         hud.value = HudState.listening;
         message.value = '';
@@ -44,6 +105,8 @@ class DictationController extends VeloraController {
       } else {
         _timer?.cancel();
         _listening = false;
+        recording.value = false;
+        await desktop.setRecording(false);
         hud.value = HudState.writing;
         await dictation.finish();
         hud.value = HudState.success;
@@ -51,6 +114,11 @@ class DictationController extends VeloraController {
         await desktop.hideHud();
       }
     } catch (e) {
+      debugPrint(
+        'Dictation failed: ${e is DictationException ? e.code : e.runtimeType}',
+      );
+      _mode = null;
+      recording.value = false;
       _timer?.cancel();
       if (_listening) {
         _listening = false;
@@ -58,6 +126,7 @@ class DictationController extends VeloraController {
           await dictation.cancel();
         } catch (_) {}
       }
+      await desktop.setRecording(false);
       hud.value = HudState.error;
       message.value = e is DictationException
           ? e.message
@@ -66,7 +135,7 @@ class DictationController extends VeloraController {
                 .replaceFirst('Bad state: ', '')
                 .replaceFirst('Exception: ', '');
       await desktop.showHud();
-      await Future<void>.delayed(const Duration(milliseconds: 2500));
+      await Future<void>.delayed(const Duration(seconds: 5));
       await desktop.hideHud();
     } finally {
       _busy = false;
