@@ -4,7 +4,7 @@ Windows 10/11 Flutter desktop dictation using a personal Gemini API key and Velo
 
 ## Download
 
-Get the Windows x64 setup executable from [Releases](https://github.com/md-riaz/ai-voice-dictator/releases). A portable ZIP is also available; extract the entire archive before starting `AI-Voice-Dictator.exe`.
+Get the Windows x64 setup executable from [Releases](https://github.com/md-riaz/ai-voice-dictator/releases).
 
 ## Build
 
@@ -20,7 +20,7 @@ flutter build windows
 
 The application executable and required runtime files are in `build/windows/x64/runner/Release/`. Distribute the entire directory.
 
-To publish a new Windows release, update `version` in `pubspec.yaml`, push the change, and run **Windows release** from the repository's Actions tab. The workflow uses the version before the `+` build number as the Git tag and creates both installer and portable downloads; existing tags are rejected.
+To publish a new Windows release, update `version` in `pubspec.yaml`, push the change, and run **Windows release** from the repository's Actions tab. The workflow uses the version before the `+` build number as the Git tag and creates an installer; existing tags are rejected.
 
 ## Use
 

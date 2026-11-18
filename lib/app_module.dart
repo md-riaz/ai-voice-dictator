@@ -31,6 +31,7 @@ class AppModule {
       onHotkey: () => unawaited(controller.toggle()),
       onTranslate: () => unawaited(controller.toggle(translate: true)),
       onKeyEvent: (event) {
+        if (controller.processing) return;
         keyEvents = keyEvents
             .then((_) => controller.handleShortcut(event))
             .catchError((Object error) {});

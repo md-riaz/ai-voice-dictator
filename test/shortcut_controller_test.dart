@@ -27,12 +27,16 @@ class FakeDictation implements DictationService {
 }
 
 class FakeDesktop implements DesktopService {
+  int hidden = 0;
   @override
   Future<void> updateHud(String state, String message, int seconds) async {}
   @override
   Future<void> showHud() async {}
   @override
-  Future<void> hideHud() async {}
+  Future<void> hideHud() async {
+    hidden++;
+  }
+
   @override
   Future<void> setRecording(bool active) async {}
   @override
@@ -45,6 +49,20 @@ class FakeSettings implements SettingsStore {
 }
 
 void main() {
+  testWidgets('a new recording can start while the success overlay is shown', (
+    tester,
+  ) async {
+    final service = FakeDictation();
+    final desktop = FakeDesktop();
+    final controller = DictationController(service, FakeSettings(), desktop);
+    await controller.handleShortcut('holdStart');
+    await controller.handleShortcut('holdStop');
+    await controller.handleShortcut('holdStart');
+    expect(service.events, ['start', 'finish', 'start']);
+    await tester.pump(const Duration(seconds: 2));
+    expect(desktop.hidden, 0);
+    await controller.cancel();
+  });
   test('shows preparing until the microphone is ready', () async {
     final service = SlowDictation();
     final controller = DictationController(

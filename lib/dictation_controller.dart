@@ -26,8 +26,10 @@ class DictationController extends VeloraController {
   bool _closing = false;
   Completer<void>? _operationDone;
   bool _listening = false;
+  bool processing = false;
   String? _mode;
   Timer? _timer;
+  Timer? _hudTimer;
 
   Future<void> handleShortcut(String event) async {
     if (_closing) return;
@@ -90,6 +92,7 @@ class DictationController extends VeloraController {
     }
     _busy = true;
     _operationDone = Completer<void>();
+    _hudTimer?.cancel();
     try {
       if (!_listening) {
         seconds.value = 0;
@@ -113,14 +116,14 @@ class DictationController extends VeloraController {
         _timer?.cancel();
         _listening = false;
         recording.value = false;
+        processing = true;
         await desktop.setRecording(false);
         hud.value = HudState.writing;
         await desktop.updateHud(hud.value.name, message.value, seconds.value);
         await dictation.finish();
         hud.value = HudState.success;
         await desktop.updateHud(hud.value.name, message.value, seconds.value);
-        await Future<void>.delayed(const Duration(milliseconds: 1200));
-        await desktop.hideHud();
+        _scheduleHudHide(const Duration(milliseconds: 1200));
       }
     } catch (e) {
       debugPrint(
@@ -145,13 +148,18 @@ class DictationController extends VeloraController {
                 .replaceFirst('Exception: ', '');
       await desktop.updateHud(hud.value.name, message.value, seconds.value);
       await desktop.showHud();
-      await Future<void>.delayed(const Duration(seconds: 5));
-      await desktop.hideHud();
+      _scheduleHudHide(const Duration(seconds: 5));
     } finally {
+      processing = false;
       _busy = false;
       _operationDone?.complete();
       _operationDone = null;
     }
+  }
+
+  void _scheduleHudHide(Duration duration) {
+    _hudTimer?.cancel();
+    _hudTimer = Timer(duration, () => unawaited(desktop.hideHud()));
   }
 
   Future<void> showSettings() async {
@@ -165,6 +173,7 @@ class DictationController extends VeloraController {
     _closing = true;
     await _operationDone?.future;
     _timer?.cancel();
+    _hudTimer?.cancel();
     await dictation.dispose();
     await settings.close();
     await desktop.dispose();
