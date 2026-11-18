@@ -105,10 +105,12 @@ void main() {
       canPaste: canPaste,
       playgroundActive: playgroundActive,
       insertPlayground: insertPlayground,
-      transcribe: (file, duration, key, mode, target) => GeminiDictationService(
-        key,
-        client: client,
-      ).transcribe(file, duration, mode: mode, targetLanguage: target),
+      transcribe: (file, duration, key, mode, target, model) =>
+          GeminiDictationService(
+            key,
+            model: model,
+            client: client,
+          ).transcribe(file, duration, mode: mode, targetLanguage: target),
     );
     await service.start();
     expect(audio.started, true);

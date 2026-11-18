@@ -14,6 +14,11 @@ import 'package:ai_voice_dictator/services/desktop_service.dart';
 import 'package:ai_voice_dictator/services/dictation_service.dart';
 
 class FakeSettings implements SettingsStore {
+  String savedModel = SettingsStore.defaultModel;
+  @override
+  String model() => savedModel;
+  @override
+  Future<void> setModel(String value) async => savedModel = value;
   String? savedKey;
   String? savedTarget;
   String initialKey = 'saved-key';
@@ -103,6 +108,29 @@ class PlaygroundDesktop implements DesktopService {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test(
+    'persists selected and custom Gemini model IDs and rejects URLs',
+    () async {
+      final store = FakeSettings();
+      final controller = SettingsController(
+        store: store,
+        service: FakeSettingsService(),
+        onShortcutChanged: (_, _) async {},
+      );
+      controller.chooseModel('gemini-3.1-flash-lite');
+      await controller.saveModel();
+      expect(store.savedModel, 'gemini-3.1-flash-lite');
+      controller.chooseModel('custom');
+      controller.modelInput.text = 'gemini-future-preview';
+      await controller.saveModel();
+      expect(store.savedModel, 'gemini-future-preview');
+      controller.modelInput.text = 'https://example.com/model';
+      await expectLater(controller.saveModel(), throwsFormatException);
+      expect(store.savedModel, 'gemini-future-preview');
+      await controller.closeResources();
+      controller.onClose();
+    },
+  );
   testWidgets('saving the target language confirms the change', (tester) async {
     final store = FakeSettings();
     final controller = SettingsController(

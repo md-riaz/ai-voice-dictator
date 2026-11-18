@@ -37,11 +37,11 @@ void main() {
       );
       expect(
         payload['system_instruction']['parts'][0]['text'],
-        contains('Remove meaningless hesitation'),
+        contains('Remove meaningless fillers'),
       );
       expect(
         payload['system_instruction']['parts'][0]['text'],
-        contains('keeping English words and phrases in English'),
+        contains('English words in English'),
       );
       if (count++ == 0) return http.Response('', 429);
       return http.Response(
@@ -81,6 +81,73 @@ void main() {
     } on DictationException catch (e) {
       expect(e.toString(), isNot(contains('secret')));
     }
+  });
+  test(
+    'custom model does not send unsupported thinking config or fall back',
+    () async {
+      var calls = 0;
+      final client = MockClient((request) async {
+        calls++;
+        expect(
+          request.url.path,
+          '/v1beta/models/gemini-future-preview:generateContent',
+        );
+        expect(
+          jsonDecode(request.body)['generationConfig'],
+          isNot(contains('thinkingConfig')),
+        );
+        return http.Response('', 404);
+      });
+      final service = GeminiDictationService(
+        'secret',
+        model: 'gemini-future-preview',
+        client: client,
+      );
+      await expectLater(
+        service.transcribe(audio, 3),
+        throwsA(isA<DictationException>()),
+      );
+      expect(calls, 1);
+    },
+  );
+  test('rejects a malformed model before making a request', () async {
+    final client = MockClient((_) async => fail('must not call network'));
+    final service = GeminiDictationService(
+      'secret',
+      model: '../other',
+      client: client,
+    );
+    await expectLater(
+      service.transcribe(audio, 3),
+      throwsA(
+        isA<DictationException>().having(
+          (e) => e.code,
+          'code',
+          'invalid_model',
+        ),
+      ),
+    );
+  });
+  test('selected fallback model does not silently use another model', () async {
+    var calls = 0;
+    final client = MockClient((request) async {
+      calls++;
+      expect(
+        request.url.path,
+        '/v1beta/models/gemini-3.1-flash-lite:generateContent',
+      );
+      return http.Response('', 404);
+    });
+    final service = GeminiDictationService(
+      'secret',
+      model: 'gemini-3.1-flash-lite',
+      client: client,
+    );
+    await expectLater(
+      service.transcribe(audio, 3),
+      throwsA(isA<DictationException>()),
+    );
+    expect(calls, 1);
   });
   test(
     'explains a quota failure after both models reject the request',

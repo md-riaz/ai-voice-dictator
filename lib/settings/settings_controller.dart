@@ -31,6 +31,12 @@ class SettingsController extends VeloraController {
 
   final key = TextEditingController();
   final target = TextEditingController();
+  final modelInput = TextEditingController();
+  String modelChoice = SettingsStore.defaultModel;
+  static const knownModels = [
+    SettingsStore.defaultModel,
+    'gemini-3.1-flash-lite',
+  ];
   StreamSubscription<Uint8List>? samples;
   StreamSubscription<Amplitude>? amplitude;
   List<InputDevice> devices = [];
@@ -69,6 +75,9 @@ class SettingsController extends VeloraController {
       _updateState(() {
         this.key.text = key;
         target.text = store.targetLanguage();
+        final savedModel = store.model();
+        modelChoice = knownModels.contains(savedModel) ? savedModel : 'custom';
+        modelInput.text = savedModel;
         language = store.language();
         shortcut = store.shortcut();
         translationShortcut = store.translationShortcut();
@@ -246,6 +255,21 @@ class SettingsController extends VeloraController {
     _updateState(() => language = value);
   }
 
+  void chooseModel(String value) {
+    _updateState(() => modelChoice = value);
+  }
+
+  Future<void> saveModel() async {
+    final model = modelChoice == 'custom'
+        ? modelInput.text.trim()
+        : modelChoice;
+    if (!SettingsStore.validModel(model)) {
+      throw const FormatException('Use a Gemini model ID, not a URL or path.');
+    }
+    await store.setModel(model);
+    _updateState(() => modelInput.text = model);
+  }
+
   Future<void> setTarget(String value) async {
     if (value.trim().isNotEmpty) await store.setTargetLanguage(value.trim());
   }
@@ -269,6 +293,7 @@ class SettingsController extends VeloraController {
     unawaited(closeResources());
     key.dispose();
     target.dispose();
+    modelInput.dispose();
     super.onClose();
   }
 }

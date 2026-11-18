@@ -27,6 +27,32 @@ class _SettingsViewState extends State<SettingsView> {
   bool _setupPageChosen = false;
   bool _wasSetupRequired = false;
   SettingsController get controller => widget.controller;
+  Future<void> _saveModel() async {
+    try {
+      await controller.saveModel();
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Gemini model saved.')));
+      }
+    } on FormatException {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Enter a model ID using lowercase letters, numbers, dots or hyphens (up to 100 characters).',
+            ),
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not save the Gemini model.')),
+        );
+      }
+    }
+  }
+
   Future<void> _saveTarget(String value) async {
     final language = value.trim();
     if (language.isEmpty ||
@@ -306,6 +332,87 @@ class _SettingsViewState extends State<SettingsView> {
                                           ?.copyWith(
                                             color: colors.onSurfaceVariant,
                                           ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            if (_page == 1) const SizedBox(height: 16),
+                            if (_page == 1)
+                              VeloraCard(
+                                elevated: false,
+                                color: colors.surfaceContainerLowest,
+                                padding: const EdgeInsets.all(24),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _heading(
+                                      context,
+                                      Icons.auto_awesome_outlined,
+                                      'Gemini model',
+                                      'Choose a model or enter a model ID supported by your API key.',
+                                    ),
+                                    const SizedBox(height: 20),
+                                    Text(
+                                      'Model',
+                                      style: theme.textTheme.labelLarge,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Semantics(
+                                      label: 'Gemini model',
+                                      child: DropdownButtonFormField<String>(
+                                        initialValue: controller.modelChoice,
+                                        isExpanded: true,
+                                        items: const [
+                                          DropdownMenuItem(
+                                            value: 'gemini-3.5-flash-lite',
+                                            child: Text(
+                                              'Gemini 3.5 Flash-Lite',
+                                            ),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 'gemini-3.1-flash-lite',
+                                            child: Text(
+                                              'Gemini 3.1 Flash-Lite',
+                                            ),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 'custom',
+                                            child: Text('Custom model ID'),
+                                          ),
+                                        ],
+                                        onChanged: (value) {
+                                          if (value != null) {
+                                            controller.chooseModel(value);
+                                          }
+                                        },
+                                      ),
+                                    ),
+                                    if (controller.modelChoice == 'custom') ...[
+                                      const SizedBox(height: 14),
+                                      Text(
+                                        'Custom model ID',
+                                        style: theme.textTheme.labelLarge,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Semantics(
+                                        label: 'Custom model ID',
+                                        child: TextField(
+                                          controller: controller.modelInput,
+                                          autocorrect: false,
+                                          enableSuggestions: false,
+                                          decoration: const InputDecoration(
+                                            hintText:
+                                                'e.g. gemini-3.5-flash-lite',
+                                          ),
+                                          onSubmitted: (_) => _saveModel(),
+                                        ),
+                                      ),
+                                    ],
+                                    const SizedBox(height: 14),
+                                    VeloraButton(
+                                      label: 'Save model',
+                                      size: VeloraButtonSize.small,
+                                      onPressed: _saveModel,
                                     ),
                                   ],
                                 ),

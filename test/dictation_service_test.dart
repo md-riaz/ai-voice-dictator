@@ -19,6 +19,8 @@ class FakeSettings implements SettingsStore {
   @override
   String targetLanguage() => 'English';
   @override
+  String model() => SettingsStore.defaultModel;
+  @override
   Future<void> addHistory(String text, Duration duration) async {
     events.add('history:$text');
   }
@@ -90,7 +92,7 @@ void main() {
       FakeAudio(file),
       FakeDesktop(settings.events),
       canPaste: () => false,
-      transcribe: (file, seconds, key, mode, target) async => 'Hello',
+      transcribe: (file, seconds, key, mode, target, model) async => 'Hello',
     );
     await service.start();
     await expectLater(service.finish(), throwsStateError);
@@ -107,7 +109,7 @@ void main() {
       settings,
       FakeAudio(file),
       FakeDesktop(settings.events),
-      transcribe: (file, seconds, key, mode, target) async {
+      transcribe: (file, seconds, key, mode, target, model) async {
         expect(mode, DictationLanguageMode.translate);
         return 'Hello';
       },
@@ -127,7 +129,7 @@ void main() {
       settings,
       FakeAudio(file),
       FakeDesktop(settings.events),
-      transcribe: (file, seconds, key, mode, target) async =>
+      transcribe: (file, seconds, key, mode, target, model) async =>
           throw StateError('failed'),
     );
     await service.start();

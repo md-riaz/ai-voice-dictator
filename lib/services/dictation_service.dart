@@ -12,6 +12,7 @@ typedef Transcribe = Future<String> Function(
   String apiKey,
   DictationLanguageMode mode,
   String targetLanguage,
+  String model,
 );
 
 class DictationService {
@@ -41,9 +42,11 @@ class DictationService {
     String key,
     DictationLanguageMode mode,
     String target,
-  ) =>
-      GeminiDictationService(key)
-          .transcribe(file, duration, mode: mode, targetLanguage: target);
+    String model,
+  ) => GeminiDictationService(
+    key,
+    model: model,
+  ).transcribe(file, duration, mode: mode, targetLanguage: target);
 
   Future<void> start({bool translate = false}) async {
     if ((await settings.apiKey()).isEmpty) {
@@ -81,6 +84,7 @@ class DictationService {
         await settings.apiKey(),
         mode,
         settings.targetLanguage(),
+        settings.model(),
       );
       try {
         await desktop.copyTranscript(text);

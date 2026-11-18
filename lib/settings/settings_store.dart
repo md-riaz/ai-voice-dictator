@@ -20,6 +20,9 @@ class HistoryEntry {
 }
 
 class SettingsStore {
+  static const defaultModel = 'gemini-3.5-flash-lite';
+  static bool validModel(String value) =>
+      RegExp(r'^[a-z0-9][a-z0-9.-]{0,99}$').hasMatch(value);
   SettingsStore({FlutterSecureStorage? secureStorage})
     : _secure = secureStorage ?? const FlutterSecureStorage();
   final FlutterSecureStorage _secure;
@@ -59,6 +62,18 @@ class SettingsStore {
   }
 
   String language() => _prefs.getString('language') ?? 'auto';
+  String model() {
+    final value = _prefs.getString('gemini_model');
+    return value != null && validModel(value) ? value : defaultModel;
+  }
+
+  Future<void> setModel(String value) async {
+    if (!validModel(value)) {
+      throw const FormatException('Invalid Gemini model ID.');
+    }
+    await _prefs.setString('gemini_model', value);
+  }
+
   Future<void> setLanguage(String value) async {
     await _prefs.setString('language', value);
   }

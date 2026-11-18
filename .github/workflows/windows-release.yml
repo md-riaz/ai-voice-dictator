@@ -70,7 +70,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           APP_VERSION: ${{ steps.version.outputs.value }}
         run: |
-          $assets = Get-ChildItem dist -File | ForEach-Object { $_.FullName }
+          $assets = @(Get-ChildItem dist -File | ForEach-Object { $_.FullName })
           if ($assets.Count -ne 1 -or $assets[0] -notlike '*-Setup.exe') { throw 'Expected the Windows setup executable.' }
           gh release create "v$env:APP_VERSION" @assets --target $env:GITHUB_SHA --title "AI Voice Dictator v$env:APP_VERSION" --notes 'Download and run the Windows x64 Setup.exe installer.'
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

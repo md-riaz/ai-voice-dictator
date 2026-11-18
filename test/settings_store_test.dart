@@ -5,6 +5,29 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test('persists a validated model choice', () async {
+    SharedPreferences.setMockInitialValues({});
+    final store = SettingsStore();
+    await store.initialize(databasePath: inMemoryDatabasePath);
+    expect(store.model(), SettingsStore.defaultModel);
+    await store.setModel('gemini-future-preview');
+    final reopened = SettingsStore();
+    await reopened.initialize(databasePath: inMemoryDatabasePath);
+    expect(reopened.model(), 'gemini-future-preview');
+    await expectLater(
+      store.setModel('models/gemini-invalid'),
+      throwsFormatException,
+    );
+    await store.close();
+    await reopened.close();
+  });
+  test('invalid persisted model falls back to default', () async {
+    SharedPreferences.setMockInitialValues({'gemini_model': '../invalid'});
+    final store = SettingsStore();
+    await store.initialize(databasePath: inMemoryDatabasePath);
+    expect(store.model(), SettingsStore.defaultModel);
+    await store.close();
+  });
   test(
     'history returns the newest 50 entries and preserves durations',
     () async {
