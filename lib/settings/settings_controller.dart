@@ -44,6 +44,7 @@ class SettingsController extends VeloraController {
   bool pageLoading = true;
   bool needsSetup = true;
   bool _keySaved = false;
+  int _keyCheckVersion = 0;
   bool testingMic = false;
   double level = 0;
 
@@ -75,11 +76,12 @@ class SettingsController extends VeloraController {
         final savedDevice = store.deviceId();
         device = devices.any((d) => d.id == savedDevice) ? savedDevice : null;
         this.history = history;
-        keyStatus = key.isEmpty ? 'Key missing' : 'Not checked';
+        keyStatus = key.isEmpty ? 'Key missing' : 'Checking saved key…';
         needsSetup = key.isEmpty;
         _keySaved = key.isNotEmpty;
         pageLoading = false;
       });
+      if (key.isNotEmpty) unawaited(testKey());
     } catch (_) {
       if (!_closed) {
         _updateState(() {
@@ -92,8 +94,9 @@ class SettingsController extends VeloraController {
 
   void keyChanged(String value) {
     _updateState(() {
+      _keyCheckVersion++;
       _keySaved = false;
-      keyStatus = value.trim().isEmpty ? 'Key missing' : 'Not checked';
+      keyStatus = value.trim().isEmpty ? 'Key missing' : 'Unsaved key';
     });
   }
 
@@ -131,27 +134,31 @@ class SettingsController extends VeloraController {
 
   Future<void> testKey() async {
     final key = this.key.text.trim();
+    final version = ++_keyCheckVersion;
     if (key.isEmpty) {
       _updateState(() => keyStatus = 'Key missing');
       return;
     }
     _updateState(() {
-      keyStatus = 'Checking…';
-      pageError = null;
+      keyStatus = _keySaved ? 'Checking saved key…' : 'Checking key…';
     });
     try {
       final statusCode = await service.validateKey(key);
-      if (!_closed && this.key.text.trim() == key) {
+      if (!_closed &&
+          version == _keyCheckVersion &&
+          this.key.text.trim() == key) {
         _updateState(() {
           keyStatus = statusCode == 200
-              ? 'Connected'
+              ? (_keySaved ? 'Connected' : 'Valid — save key')
               : 'Validation failed (HTTP $statusCode)';
           if (statusCode == 200 && _keySaved) needsSetup = false;
         });
       }
     } catch (_) {
-      if (!_closed && this.key.text.trim() == key) {
-        _updateState(() => keyStatus = 'Unable to validate key');
+      if (!_closed &&
+          version == _keyCheckVersion &&
+          this.key.text.trim() == key) {
+        _updateState(() => keyStatus = 'Could not check connection');
       }
     }
   }

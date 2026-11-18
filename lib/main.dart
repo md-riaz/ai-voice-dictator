@@ -12,6 +12,37 @@ const _voiceTheme = ui.VeloraThemePreset(
   seed: Color(0xFF3454B5),
 );
 
+ThemeData _buildVoiceTheme(Brightness brightness) {
+  final theme = ui.buildVeloraTheme(
+    preset: _voiceTheme,
+    brightness: brightness,
+  );
+  final dark = brightness == Brightness.dark;
+  final colors = theme.colorScheme.copyWith(
+    surface: dark ? const Color(0xFF111827) : const Color(0xFFE9EEF7),
+    surfaceContainerLowest: dark
+        ? const Color(0xFF0D1422)
+        : const Color(0xFFF8FAFE),
+    surfaceContainerLow: dark
+        ? const Color(0xFF182235)
+        : const Color(0xFFF0F4FB),
+    surfaceContainer: dark ? const Color(0xFF1D293D) : const Color(0xFFE4EBF6),
+    surfaceContainerHigh: dark
+        ? const Color(0xFF253149)
+        : const Color(0xFFDAE3F1),
+    surfaceContainerHighest: dark
+        ? const Color(0xFF303D56)
+        : const Color(0xFFD2DDEE),
+  );
+  return theme.copyWith(
+    colorScheme: colors,
+    scaffoldBackgroundColor: colors.surface,
+    inputDecorationTheme: theme.inputDecorationTheme.copyWith(
+      fillColor: colors.surfaceContainerHighest.withValues(alpha: 0.55),
+    ),
+  );
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Velora.boot(
@@ -39,11 +70,8 @@ class DictatorApp extends StatelessWidget {
     return MaterialApp(
       title: 'AI Voice Dictator',
       debugShowCheckedModeBanner: false,
-      theme: ui.buildVeloraTheme(preset: _voiceTheme),
-      darkTheme: ui.buildVeloraTheme(
-        preset: _voiceTheme,
-        brightness: Brightness.dark,
-      ),
+      theme: _buildVoiceTheme(Brightness.light),
+      darkTheme: _buildVoiceTheme(Brightness.dark),
       themeMode: ThemeMode.system,
       home: Obx(
         () => controller.settingsVisible.value

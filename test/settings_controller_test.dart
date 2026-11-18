@@ -308,7 +308,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Setup'));
     await tester.pumpAndSettle();
-    expect(find.text('Not checked'), findsOneWidget);
+    expect(find.text('Checking saved key…'), findsOneWidget);
     await tester.tap(find.text('History'));
     await tester.pumpAndSettle();
     expect(find.text('Recent dictations'), findsOneWidget);
@@ -333,6 +333,48 @@ void main() {
       controller.onClose();
     },
   );
+  test(
+    'checks a saved key in the background without blocking settings',
+    () async {
+      final service = FakeSettingsService();
+      final controller = SettingsController(
+        store: FakeSettings(),
+        service: service,
+        onShortcutChanged: (_, _) async {},
+      );
+      await controller.load();
+      expect(controller.pageLoading, false);
+      expect(controller.needsSetup, false);
+      expect(controller.keyStatus, 'Checking saved key…');
+      expect(service.testedKey, 'saved-key');
+      service.validation.complete(200);
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.keyStatus, 'Connected');
+      await controller.closeResources();
+      controller.onClose();
+    },
+  );
+  test(
+    'old validation cannot override edits even if text changes back',
+    () async {
+      final service = FakeSettingsService();
+      final controller = SettingsController(
+        store: FakeSettings(),
+        service: service,
+        onShortcutChanged: (_, _) async {},
+      );
+      await controller.load();
+      controller.key.text = 'other-key';
+      controller.keyChanged('other-key');
+      controller.key.text = 'saved-key';
+      controller.keyChanged('saved-key');
+      service.validation.complete(200);
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.keyStatus, 'Unsaved key');
+      await controller.closeResources();
+      controller.onClose();
+    },
+  );
   test('saving a key starts validation automatically', () async {
     final store = FakeSettings();
     final service = FakeSettingsService();
@@ -346,7 +388,7 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     expect(store.savedKey, 'new-key');
     expect(service.testedKey, 'new-key');
-    expect(controller.keyStatus, 'Checking…');
+    expect(controller.keyStatus, 'Checking saved key…');
     service.validation.complete(200);
     await pending;
     expect(controller.keyStatus, 'Connected');
@@ -366,7 +408,7 @@ void main() {
     controller.keyChanged('new-key');
     service.validation.complete(200);
     await pending;
-    expect(controller.keyStatus, 'Not checked');
+    expect(controller.keyStatus, 'Unsaved key');
     await controller.closeResources();
     controller.onClose();
   });

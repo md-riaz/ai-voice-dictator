@@ -114,34 +114,53 @@ class _SettingsViewState extends State<SettingsView> {
     final colors = theme.colorScheme;
     final decoration = InputDecorationTheme.of(context);
     return Scaffold(
-      backgroundColor: colors.surfaceContainerLowest,
+      backgroundColor: colors.surface,
       body: controller.pageLoading
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
               child: Row(
                 children: [
-                  VeloraNavRail(
-                    destinations: const [
-                      VeloraNavDestination(
-                        icon: Icons.mic_none_rounded,
-                        label: 'Home',
+                  Theme(
+                    data: theme.copyWith(
+                      colorScheme: colors.copyWith(
+                        surface: colors.surfaceContainerLow,
                       ),
-                      VeloraNavDestination(
-                        icon: Icons.tune_rounded,
-                        label: 'Setup',
+                    ),
+                    child: VeloraNavRail(
+                      leading: Padding(
+                        padding: const EdgeInsets.only(top: 8, bottom: 12),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(11),
+                          child: Image.asset(
+                            'assets/app_icon.png',
+                            width: 40,
+                            height: 40,
+                            excludeFromSemantics: true,
+                          ),
+                        ),
                       ),
-                      VeloraNavDestination(
-                        icon: Icons.history_rounded,
-                        label: 'History',
-                      ),
-                    ],
-                    selectedIndex: _page,
-                    onDestinationSelected: (value) {
-                      if (controller.needsSetup && value != 1) return;
-                      if (value == 2) controller.refreshHistory();
-                      FocusScope.of(context).unfocus();
-                      setState(() => _page = value);
-                    },
+                      destinations: const [
+                        VeloraNavDestination(
+                          icon: Icons.mic_none_rounded,
+                          label: 'Home',
+                        ),
+                        VeloraNavDestination(
+                          icon: Icons.tune_rounded,
+                          label: 'Setup',
+                        ),
+                        VeloraNavDestination(
+                          icon: Icons.history_rounded,
+                          label: 'History',
+                        ),
+                      ],
+                      selectedIndex: _page,
+                      onDestinationSelected: (value) {
+                        if (controller.needsSetup && value != 1) return;
+                        if (value == 2) controller.refreshHistory();
+                        FocusScope.of(context).unfocus();
+                        setState(() => _page = value);
+                      },
+                    ),
                   ),
                   Expanded(
                     child: Center(
@@ -156,28 +175,29 @@ class _SettingsViewState extends State<SettingsView> {
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(14),
-                                  child: Image.asset(
-                                    'assets/app_icon.png',
-                                    width: 52,
-                                    height: 52,
-                                    excludeFromSemantics: true,
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'AI Voice Dictator',
-                                        style: theme.textTheme.headlineSmall,
+                                        [
+                                          'Your workspace',
+                                          'Connection & audio',
+                                          'Dictation history',
+                                        ][_page],
+                                        style: theme.textTheme.headlineSmall
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w700,
+                                            ),
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        ['Home', 'Setup', 'History'][_page],
+                                        [
+                                          'Speak naturally, wherever you work.',
+                                          'Manage your connection and microphone.',
+                                          'Your recent dictations, saved on this device.',
+                                        ][_page],
                                         style: theme.textTheme.bodyMedium
                                             ?.copyWith(
                                               color: colors.onSurfaceVariant,
@@ -205,6 +225,7 @@ class _SettingsViewState extends State<SettingsView> {
                             if (_page == 1)
                               VeloraCard(
                                 elevated: false,
+                                color: colors.surfaceContainerLowest,
                                 padding: const EdgeInsets.all(24),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -214,6 +235,22 @@ class _SettingsViewState extends State<SettingsView> {
                                       Icons.key_rounded,
                                       'Gemini connection',
                                       'Connect your API key to start dictating.',
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Semantics(
+                                      liveRegion: true,
+                                      child: VeloraBadge(
+                                        label: controller.keyStatus,
+                                        status:
+                                            controller.keyStatus == 'Connected'
+                                            ? VeloraStatus.success
+                                            : controller.keyStatus.startsWith(
+                                                    'Validation failed',
+                                                  ) ||
+                                                  controller.keyStatus == 'Could not check connection'
+                                            ? VeloraStatus.error
+                                            : VeloraStatus.info,
+                                      ),
                                     ),
                                     if (controller.needsSetup) ...[
                                       const SizedBox(height: 12),
@@ -253,29 +290,11 @@ class _SettingsViewState extends State<SettingsView> {
                                           variant: VeloraButtonVariant.outline,
                                           onPressed: controller.testKey,
                                         ),
-                                        if (!controller.needsSetup)
-                                          VeloraButton(
-                                            label: 'Continue to Home',
-                                            variant: VeloraButtonVariant.ghost,
-                                            onPressed: () =>
-                                                setState(() => _page = 0),
-                                          ),
-                                        Semantics(
-                                          liveRegion: true,
-                                          child: VeloraBadge(
-                                            label: controller.keyStatus,
-                                            status:
-                                                controller.keyStatus ==
-                                                    'Connected'
-                                                ? VeloraStatus.success
-                                                : VeloraStatus.info,
-                                          ),
-                                        ),
                                       ],
                                     ),
                                     const SizedBox(height: 14),
                                     Text(
-                                      'Audio is sent to Google Gemini for transcription. Transcripts are saved on this device.',
+                                      'Your key is stored securely on this device. Audio is sent to Gemini, and transcripts are saved in local history.',
                                       style: theme.textTheme.bodySmall
                                           ?.copyWith(
                                             color: colors.onSurfaceVariant,
@@ -288,6 +307,7 @@ class _SettingsViewState extends State<SettingsView> {
                             if (_page == 0)
                               VeloraCard(
                                 elevated: false,
+                                color: colors.surfaceContainerLowest,
                                 padding: const EdgeInsets.all(24),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -358,6 +378,7 @@ class _SettingsViewState extends State<SettingsView> {
                             if (_page == 0)
                               VeloraCard(
                                 elevated: false,
+                                color: colors.surfaceContainerLowest,
                                 padding: const EdgeInsets.all(24),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -389,6 +410,7 @@ class _SettingsViewState extends State<SettingsView> {
                             if (_page == 0)
                               VeloraCard(
                                 elevated: false,
+                                color: colors.surfaceContainerLowest,
                                 padding: const EdgeInsets.all(24),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -444,6 +466,7 @@ class _SettingsViewState extends State<SettingsView> {
                             if (_page == 1)
                               VeloraCard(
                                 elevated: false,
+                                color: colors.surfaceContainerLowest,
                                 padding: const EdgeInsets.all(24),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -520,6 +543,7 @@ class _SettingsViewState extends State<SettingsView> {
                             if (_page == 2)
                               VeloraCard(
                                 elevated: false,
+                                color: colors.surfaceContainerLowest,
                                 padding: const EdgeInsets.all(24),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
