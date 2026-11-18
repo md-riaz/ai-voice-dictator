@@ -27,6 +27,34 @@ class _SettingsViewState extends State<SettingsView> {
   bool _setupPageChosen = false;
   bool _wasSetupRequired = false;
   SettingsController get controller => widget.controller;
+  Future<void> _saveTarget(String value) async {
+    final language = value.trim();
+    if (language.isEmpty ||
+        language.length > 50 ||
+        !RegExp(r'^[a-zA-Z -]+$').hasMatch(language)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Use letters, spaces or hyphens, up to 50 characters.'),
+        ),
+      );
+      return;
+    }
+    try {
+      await controller.setTarget(language);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Target language saved.')));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not save target language.')),
+        );
+      }
+    }
+  }
+
   void _refresh() {
     if (mounted) {
       setState(() {
@@ -128,16 +156,13 @@ class _SettingsViewState extends State<SettingsView> {
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: colors.primaryContainer,
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  child: Icon(
-                                    Icons.graphic_eq_rounded,
-                                    color: colors.onPrimaryContainer,
-                                    size: 27,
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: Image.asset(
+                                    'assets/app_icon.png',
+                                    width: 52,
+                                    height: 52,
+                                    excludeFromSemantics: true,
                                   ),
                                 ),
                                 const SizedBox(width: 16),
@@ -267,30 +292,9 @@ class _SettingsViewState extends State<SettingsView> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    _heading(
-                                      context,
-                                      Icons.keyboard_rounded,
-                                      'Shortcuts & language',
-                                      'Global shortcuts work in other applications.',
-                                    ),
-                                    const SizedBox(height: 20),
-                                    const Text(
-                                      'Ctrl + Win  ·  Hold to dictate; release to finish',
-                                    ),
-                                    const SizedBox(height: 8),
-                                    const Text(
-                                      'Ctrl + Win + Alt  ·  Hold to translate; release to finish',
-                                    ),
-                                    const SizedBox(height: 8),
-                                    const Text(
-                                      'Ctrl + Win + Space  ·  Press to start or finish hands-free',
-                                    ),
-                                    const SizedBox(height: 8),
-                                    const Text('Esc  ·  Cancel recording'),
-                                    const SizedBox(height: 14),
                                     Text(
                                       'Try dictation',
-                                      style: theme.textTheme.titleSmall,
+                                      style: theme.textTheme.titleMedium,
                                     ),
                                     const SizedBox(height: 8),
                                     const Text(
@@ -320,6 +324,8 @@ class _SettingsViewState extends State<SettingsView> {
                                         final status = switch (dictation
                                             .hud
                                             .value) {
+                                          HudState.preparing =>
+                                            'Preparing microphone… Please wait',
                                           HudState.listening => 'Listening…',
                                           HudState.writing => 'Writing…',
                                           HudState.success => 'Inserted',
@@ -333,6 +339,8 @@ class _SettingsViewState extends State<SettingsView> {
                                           child: Text(
                                             dictation.recording.value ||
                                                     dictation.hud.value ==
+                                                        HudState.preparing ||
+                                                    dictation.hud.value ==
                                                         HudState.writing ||
                                                     dictation.hud.value ==
                                                         HudState.error ||
@@ -343,6 +351,54 @@ class _SettingsViewState extends State<SettingsView> {
                                           ),
                                         );
                                       }),
+                                  ],
+                                ),
+                              ),
+                            if (_page == 0) const SizedBox(height: 16),
+                            if (_page == 0)
+                              VeloraCard(
+                                elevated: false,
+                                padding: const EdgeInsets.all(24),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _heading(
+                                      context,
+                                      Icons.keyboard_rounded,
+                                      'Keyboard shortcuts',
+                                      'Dictate wherever you are working.',
+                                    ),
+                                    const SizedBox(height: 20),
+                                    const Text(
+                                      'Ctrl + Win  ·  Hold to dictate; release to finish',
+                                    ),
+                                    const SizedBox(height: 8),
+                                    const Text(
+                                      'Ctrl + Win + Alt  ·  Hold to translate; release to finish',
+                                    ),
+                                    const SizedBox(height: 8),
+                                    const Text(
+                                      'Ctrl + Win + Space  ·  Press to start or finish hands-free',
+                                    ),
+                                    const SizedBox(height: 8),
+                                    const Text('Esc  ·  Cancel recording'),
+                                  ],
+                                ),
+                              ),
+                            if (_page == 0) const SizedBox(height: 16),
+                            if (_page == 0)
+                              VeloraCard(
+                                elevated: false,
+                                padding: const EdgeInsets.all(24),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _heading(
+                                      context,
+                                      Icons.translate_rounded,
+                                      'Language',
+                                      'Choose how your speech is transcribed.',
+                                    ),
                                     const SizedBox(height: 20),
                                     VeloraSelect<String>(
                                       label: 'Language mode',
@@ -371,15 +427,15 @@ class _SettingsViewState extends State<SettingsView> {
                                     VeloraTextField(
                                       label: 'Translation target language',
                                       controller: controller.target,
-                                      onSubmitted: controller.setTarget,
+                                      onSubmitted: _saveTarget,
                                     ),
                                     const SizedBox(height: 10),
                                     VeloraButton(
                                       label: 'Save target language',
-                                      variant: VeloraButtonVariant.ghost,
-                                      onPressed: () => controller.setTarget(
-                                        controller.target.text,
-                                      ),
+                                      icon: Icons.check_rounded,
+                                      variant: VeloraButtonVariant.secondary,
+                                      onPressed: () =>
+                                          _saveTarget(controller.target.text),
                                     ),
                                   ],
                                 ),

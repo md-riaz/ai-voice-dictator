@@ -192,7 +192,9 @@ bool FlutterWindow::OnCreate() {
         const std::string* m = message == args->end() ? nullptr : std::get_if<std::string>(&message->second);
         const int32_t* n = seconds == args->end() ? nullptr : std::get_if<int32_t>(&seconds->second);
         hud_success = s && *s == "success";
-        if (s && *s == "listening") {
+        if (s && *s == "preparing") {
+          hud_text = L"Preparing microphone... Please wait"; hud_color = RGB(255, 194, 90);
+        } else if (s && *s == "listening") {
           hud_text = L"Listening...  " + std::to_wstring(n ? *n / 60 : 0) + L":" + ((n && *n % 60 >= 10) ? L"" : L"0") + std::to_wstring(n ? *n % 60 : 0);
           hud_color = RGB(255, 104, 104);
         } else if (s && *s == "writing") { hud_text = L"Writing..."; hud_color = RGB(101, 210, 238); }

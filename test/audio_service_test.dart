@@ -130,6 +130,29 @@ void main() {
       await dir.delete(recursive: true);
     }
   });
+  test('trims long silence while retaining quiet audio near speech', () async {
+    final dir = await Directory.systemTemp.createTemp('audio_test_');
+    try {
+      final original = wav();
+      ByteData.sublistView(original)
+          .setInt16(44 + 5000 * 2, 100, Endian.little);
+      final padded = Uint8List(44 + 32000 * 3);
+      padded.setRange(0, 44, original);
+      padded.setRange(44 + 32000, 44 + 64000, original, 44);
+      final data = ByteData.sublistView(padded);
+      data.setUint32(4, padded.length - 8, Endian.little);
+      data.setUint32(40, padded.length - 44, Endian.little);
+      final file = File('${dir.path}/test.wav');
+      await file.writeAsBytes(padded);
+      await normalizeRecordedWav(file);
+      final output = await file.readAsBytes();
+      expect(output.length, lessThan(padded.length));
+      final samples = ByteData.sublistView(output);
+      expect(samples.getInt16(44 + 11000 * 2, Endian.little), 400);
+    } finally {
+      await dir.delete(recursive: true);
+    }
+  });
   test('rejects silence', () async {
     final dir = await Directory.systemTemp.createTemp('audio_test_');
     try {

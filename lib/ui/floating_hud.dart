@@ -2,7 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
-enum HudState { listening, writing, success, error }
+enum HudState { preparing, listening, writing, success, error }
 
 class FloatingHudOverlay extends StatelessWidget {
   const FloatingHudOverlay({
@@ -18,6 +18,11 @@ class FloatingHudOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (color, icon, title) = switch (state) {
+      HudState.preparing => (
+        Colors.amberAccent,
+        Icons.mic_none,
+        'Preparing microphone… Please wait',
+      ),
       HudState.listening => (Colors.redAccent, Icons.mic, 'Listening...'),
       HudState.writing => (
         Colors.cyanAccent,

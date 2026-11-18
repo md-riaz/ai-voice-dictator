@@ -1,8 +1,17 @@
+import 'dart:async';
+
 import 'package:ai_voice_dictator/dictation_controller.dart';
 import 'package:ai_voice_dictator/services/desktop_service.dart';
 import 'package:ai_voice_dictator/services/dictation_service.dart';
 import 'package:ai_voice_dictator/settings/settings_store.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ai_voice_dictator/ui/floating_hud.dart';
+
+class SlowDictation extends FakeDictation {
+  final ready = Completer<void>();
+  @override
+  Future<void> start({bool translate = false}) => ready.future;
+}
 
 class FakeDictation implements DictationService {
   final events = <String>[];
@@ -18,7 +27,8 @@ class FakeDictation implements DictationService {
 }
 
 class FakeDesktop implements DesktopService {
-  @override Future<void> updateHud(String state, String message, int seconds) async {}
+  @override
+  Future<void> updateHud(String state, String message, int seconds) async {}
   @override
   Future<void> showHud() async {}
   @override
@@ -35,6 +45,22 @@ class FakeSettings implements SettingsStore {
 }
 
 void main() {
+  test('shows preparing until the microphone is ready', () async {
+    final service = SlowDictation();
+    final controller = DictationController(
+      service,
+      FakeSettings(),
+      FakeDesktop(),
+    );
+    final pending = controller.toggle();
+    await Future<void>.delayed(Duration.zero);
+    expect(controller.hud.value, HudState.preparing);
+    expect(controller.recording.value, false);
+    service.ready.complete();
+    await pending;
+    expect(controller.hud.value, HudState.listening);
+    await controller.cancel();
+  });
   test('settings allows shortcuts only while playground has focus', () async {
     final service = FakeDictation();
     final controller = DictationController(

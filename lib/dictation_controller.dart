@@ -92,15 +92,17 @@ class DictationController extends VeloraController {
     _operationDone = Completer<void>();
     try {
       if (!_listening) {
+        seconds.value = 0;
+        message.value = '';
+        hud.value = HudState.preparing;
+        await desktop.updateHud(hud.value.name, message.value, seconds.value);
+        await desktop.showHud();
         await dictation.start(translate: translate);
         _listening = true;
         recording.value = true;
         await desktop.setRecording(true);
-        seconds.value = 0;
         hud.value = HudState.listening;
-        message.value = '';
         await desktop.updateHud(hud.value.name, message.value, seconds.value);
-        await desktop.showHud();
         _timer = Timer.periodic(const Duration(seconds: 1), (_) {
           seconds.value++;
           unawaited(

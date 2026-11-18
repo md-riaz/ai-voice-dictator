@@ -15,6 +15,7 @@ import 'package:ai_voice_dictator/services/dictation_service.dart';
 
 class FakeSettings implements SettingsStore {
   String? savedKey;
+  String? savedTarget;
   String initialKey = 'saved-key';
   @override
   Future<void> saveApiKey(String key) async {
@@ -25,6 +26,8 @@ class FakeSettings implements SettingsStore {
   Future<String> apiKey() async => initialKey;
   @override
   String targetLanguage() => 'English';
+  @override
+  Future<void> setTargetLanguage(String value) async => savedTarget = value;
   @override
   String language() => 'auto';
   @override
@@ -100,6 +103,34 @@ class PlaygroundDesktop implements DesktopService {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  testWidgets('saving the target language confirms the change', (tester) async {
+    final store = FakeSettings();
+    final controller = SettingsController(
+      store: store,
+      service: FakeSettingsService(),
+      onShortcutChanged: (_, _) async {},
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ui.VeloraTheme.light(),
+        home: SettingsView(controller: controller),
+      ),
+    );
+    await tester.pumpAndSettle();
+    controller.target.text = 'French';
+    final button = find.text('Save target language');
+    await tester.scrollUntilVisible(
+      button,
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.ensureVisible(button);
+    await tester.pumpAndSettle();
+    await tester.tap(button);
+    await tester.pump();
+    expect(store.savedTarget, 'French');
+    expect(find.text('Target language saved.'), findsOneWidget);
+  });
   testWidgets('first launch requires a validated saved key before home', (
     tester,
   ) async {
