@@ -2,6 +2,14 @@
 
 Windows 10/11 Flutter desktop dictation using a personal Gemini API key and Velora. Audio is sent to Google's Gemini API for processing. Transcripts are stored locally in SQLite; the API key is stored with Windows secure storage.
 
+## Preview
+
+The playground lets you try dictation, check its status, and explore the keyboard shortcuts. The transcript in this screenshot is hidden for privacy.
+
+![AI Voice Dictator workspace showing the dictation playground, an inserted status, keyboard shortcuts and language settings.](docs/images/dictation-preview.png)
+
+Dictate in other applications with the global shortcuts while a small floating overlay shows recording and processing progress. The completed transcript is copied to the clipboard and saved in local history.
+
 ## Download
 
 Get the Windows x64 setup executable from [Releases](https://github.com/md-riaz/ai-voice-dictator/releases).
