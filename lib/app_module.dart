@@ -73,7 +73,7 @@ class AppModule {
   }
 
   SettingsController settingsController() =>
-      _activeSettings = SettingsController(
+      _activeSettings ??= SettingsController(
         store: settings,
         service: SettingsService(),
         onShortcutChanged: desktop.registerShortcuts,

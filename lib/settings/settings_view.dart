@@ -23,6 +23,7 @@ class SettingsView extends StatefulWidget {
 
 class _SettingsViewState extends State<SettingsView> {
   final _playground = TextEditingController();
+  int _page = 0;
   SettingsController get controller => widget.controller;
   void _refresh() {
     if (mounted) setState(() {});
@@ -54,7 +55,20 @@ class _SettingsViewState extends State<SettingsView> {
       body: controller.pageLoading
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
-              child: Center(
+              child: Row(children: [
+                VeloraNavRail(
+                  destinations: const [
+                    VeloraNavDestination(icon: Icons.mic_none_rounded, label: 'Home'),
+                    VeloraNavDestination(icon: Icons.tune_rounded, label: 'Setup'),
+                    VeloraNavDestination(icon: Icons.history_rounded, label: 'History'),
+                  ],
+                  selectedIndex: _page,
+                  onDestinationSelected: (value) {
+                    FocusScope.of(context).unfocus();
+                    setState(() => _page = value);
+                  },
+                ),
+                Expanded(child: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 880),
                   child: ListView(
@@ -89,7 +103,7 @@ class _SettingsViewState extends State<SettingsView> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  'Settings',
+                                  ['Home', 'Setup', 'History'][_page],
                                   style: theme.textTheme.bodyMedium?.copyWith(
                                     color: colors.onSurfaceVariant,
                                   ),
@@ -113,7 +127,7 @@ class _SettingsViewState extends State<SettingsView> {
                         ),
                         const SizedBox(height: 16),
                       ],
-                      VeloraCard(
+                      if (_page == 1) VeloraCard(
                         elevated: false,
                         padding: const EdgeInsets.all(24),
                         child: Column(
@@ -175,8 +189,8 @@ class _SettingsViewState extends State<SettingsView> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      VeloraCard(
+                      if (_page == 1) const SizedBox(height: 16),
+                      if (_page == 0) VeloraCard(
                         elevated: false,
                         padding: const EdgeInsets.all(24),
                         child: Column(
@@ -290,8 +304,8 @@ class _SettingsViewState extends State<SettingsView> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      VeloraCard(
+                      if (_page == 0) const SizedBox(height: 16),
+                      if (_page == 1) VeloraCard(
                         elevated: false,
                         padding: const EdgeInsets.all(24),
                         child: Column(
@@ -361,8 +375,8 @@ class _SettingsViewState extends State<SettingsView> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      VeloraCard(
+                      if (_page == 1) const SizedBox(height: 16),
+                      if (_page == 2) VeloraCard(
                         elevated: false,
                         padding: const EdgeInsets.all(24),
                         child: Column(
@@ -407,7 +421,8 @@ class _SettingsViewState extends State<SettingsView> {
                     ],
                   ),
                 ),
-              ),
+              )),
+              ]),
             ),
     );
   }

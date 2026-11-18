@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:velora/velora.dart';
 import 'package:velora_ui/velora_ui.dart' as ui;
 
@@ -16,7 +17,7 @@ Future<void> main() async {
   );
   final module = await AppModule.create();
   runApp(DictatorApp(module: module));
-  if (module.startupError != null || (await module.settings.apiKey()).isEmpty) {
+  if (kDebugMode || module.startupError != null || (await module.settings.apiKey()).isEmpty) {
     await module.controller.showSettings();
   }
 }

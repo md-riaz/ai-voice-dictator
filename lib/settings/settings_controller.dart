@@ -52,14 +52,14 @@ class SettingsController extends VeloraController {
 
   Future<void> load() async {
     try {
-      final key = await store.apiKey();
+      final key = await store.apiKey().timeout(const Duration(seconds: 8));
       List<InputDevice> devices;
       try {
-        devices = await service.listDevices();
+        devices = await service.listDevices().timeout(const Duration(seconds: 3));
       } catch (_) {
         devices = [];
       }
-      final history = await store.history();
+      final history = await store.history().timeout(const Duration(seconds: 8));
       if (_closed) return;
       _updateState(() {
         this.key.text = key;

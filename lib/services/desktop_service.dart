@@ -7,6 +7,7 @@ import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hotkey_manager/hotkey_manager.dart';
+import 'package:nativeapi/nativeapi.dart' as nativeapi;
 import 'package:tray_manager/legacy.dart';
 import 'package:window_manager/legacy.dart';
 
@@ -71,7 +72,6 @@ class DesktopService with TrayListener, WindowListener {
   final List<HotKey> _shortcuts = [];
   String? _primary;
   String? _translation;
-  bool _settingsVisible = false;
   bool hotkeysAvailable = false;
 
   Future<void> initialize() async {
@@ -100,6 +100,7 @@ class DesktopService with TrayListener, WindowListener {
         ],
       ),
     );
+    trayManager.trayIcon?.setContextMenuTrigger(nativeapi.ContextMenuTrigger.rightClicked);
   }
 
   Future<void> setRecording(bool active) =>
@@ -218,23 +219,14 @@ class DesktopService with TrayListener, WindowListener {
     }
   }
 
-  Future<void> showHud() async {
-    if (_settingsVisible) return;
-    await windowManager.setAsFrameless();
-    await windowManager.setBackgroundColor(Colors.transparent);
-    await windowManager.setAlwaysOnTop(true);
-    await windowManager.setSkipTaskbar(true);
-    await windowManager.setSize(const Size(340, 76));
-    await windowManager.setAlignment(Alignment.bottomCenter);
-    await windowManager.show(inactive: true);
-  }
+  Future<void> updateHud(String state, String message, int seconds) =>
+      _keyChannel.invokeMethod<void>('updateHud', {'state': state, 'message': message, 'seconds': seconds});
 
-  Future<void> hideHud() async {
-    if (!_settingsVisible) await windowManager.hide();
-  }
+  Future<void> showHud() => _keyChannel.invokeMethod<void>('showHud');
+
+  Future<void> hideHud() => _keyChannel.invokeMethod<void>('hideHud');
 
   Future<void> showSettings() async {
-    _settingsVisible = true;
     await windowManager.setTitleBarStyle(TitleBarStyle.normal);
     await windowManager.setBackgroundColor(Colors.white);
     await windowManager.setAlwaysOnTop(false);
@@ -247,15 +239,12 @@ class DesktopService with TrayListener, WindowListener {
 
   @override
   void onWindowClose() {
-    _settingsVisible = false;
     onSettingsClosed();
     windowManager.hide();
   }
 
   @override
   void onTrayIconMouseDown() => onSettings();
-  @override
-  void onTrayIconRightMouseDown() => trayManager.popUpContextMenu();
   @override
   void onTrayMenuItemClick(MenuItem menuItem) {
     switch (menuItem.key) {

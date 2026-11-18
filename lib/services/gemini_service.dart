@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../guardrails.dart';
@@ -131,6 +132,7 @@ class GeminiDictationService {
     });
     final client = _client ?? http.Client();
     try {
+      String? failure;
       for (final model in models) {
         for (var attempt = 0; attempt < 2; attempt++) {
           http.Response response;
@@ -147,14 +149,17 @@ class GeminiDictationService {
                   },
                   body: payload,
                 )
-                .timeout(const Duration(seconds: 45));
+                .timeout(const Duration(seconds: 25));
           } on TimeoutException {
-            if (attempt == 0) continue;
+            debugPrint('Gemini request timed out for $model');
+            failure ??= 'Gemini timed out. Check your internet connection and retry.';
             break;
           } on http.ClientException {
-            if (attempt == 0) continue;
+            debugPrint('Gemini network connection failed for $model');
+            failure ??= 'Could not reach Gemini. Check your internet connection.';
             break;
           }
+          debugPrint('Gemini $model HTTP ${response.statusCode}');
           if (response.statusCode == 200) {
             try {
               final json = jsonDecode(response.body) as Map<String, dynamic>;
@@ -178,8 +183,16 @@ class GeminiDictationService {
               );
             }
           }
-          if (response.statusCode == 429 || response.statusCode == 404) break;
+          if (response.statusCode == 429) {
+            failure = 'Gemini quota or rate limit reached (HTTP 429). Check your API quota.';
+            break;
+          }
+          if (response.statusCode == 404) {
+            failure ??= 'The configured Gemini model is unavailable (HTTP 404).';
+            break;
+          }
           if (response.statusCode == 503 || response.statusCode == 500) {
+            failure ??= 'Gemini is temporarily unavailable (HTTP ${response.statusCode}).';
             if (attempt == 0) {
               await Future<void>.delayed(const Duration(milliseconds: 600));
             }
@@ -199,9 +212,9 @@ class GeminiDictationService {
           );
         }
       }
-      throw const DictationException(
+      throw DictationException(
         'api_unavailable',
-        'Gemini is unavailable or its quota is exhausted. Try again later.',
+        failure ?? 'Gemini is unavailable. Try again later.',
       );
     } finally {
       if (_client == null) client.close();

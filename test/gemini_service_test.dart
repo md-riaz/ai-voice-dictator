@@ -66,6 +66,11 @@ void main() {
       expect(e.toString(), isNot(contains('secret')));
     }
   });
+  test('explains a quota failure after both models reject the request', () async {
+    final client = MockClient((_) async => http.Response('private response', 429));
+    final service = GeminiDictationService('secret', client: client);
+    await expectLater(service.transcribe(audio, 3), throwsA(isA<DictationException>().having((e) => e.message, 'message', contains('429')).having((e) => e.toString(), 'redacted', isNot(contains('secret')))));
+  });
   test('rejects unusually long model output', () {
     expect(
       () => DictationGuardrails.sanitizeResponse(

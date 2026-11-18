@@ -45,6 +45,8 @@ class TestDesktop extends DesktopService {
   @override
   Future<void> setRecording(bool active) async {}
   @override
+  Future<void> updateHud(String state, String message, int seconds) async {}
+  @override
   Future<void> dispose() async {}
 }
 

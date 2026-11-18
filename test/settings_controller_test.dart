@@ -47,6 +47,7 @@ class FakeSettings implements SettingsStore {
 class FakeSettingsService implements SettingsService {
   final permission = Completer<bool>();
   final validation = Completer<int>();
+  Completer<List<InputDevice>>? devicesPending;
   @override
   Future<int> validateKey(String key) {
     testedKey = key;
@@ -56,9 +57,9 @@ class FakeSettingsService implements SettingsService {
   String? testedKey;
   bool closed = false;
   @override
-  Future<List<InputDevice>> listDevices() async => [
+  Future<List<InputDevice>> listDevices() => devicesPending?.future ?? Future.value([
     const InputDevice(id: 'device', label: 'Mic'),
-  ];
+  ]);
   @override
   Future<bool> hasPermission() => permission.future;
   @override
@@ -84,6 +85,7 @@ class PlaygroundDictation implements DictationService {
 }
 
 class PlaygroundDesktop implements DesktopService {
+  @override Future<void> updateHud(String state, String message, int seconds) async {}
   @override
   Future<void> showHud() async {}
   @override
@@ -96,6 +98,17 @@ class PlaygroundDesktop implements DesktopService {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  testWidgets('settings opens when device enumeration stalls', (tester) async {
+    final service = FakeSettingsService()..devicesPending = Completer<List<InputDevice>>();
+    final controller = SettingsController(store: FakeSettings(), service: service, onShortcutChanged: (_, _) async {});
+    await tester.pumpWidget(MaterialApp(theme: ui.VeloraTheme.light(), home: SettingsView(controller: controller)));
+    await tester.pump();
+    expect(controller.pageLoading, true);
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pump();
+    expect(controller.pageLoading, false);
+    expect(controller.devices, isEmpty);
+  });
   testWidgets('playground focus allows a dictation shortcut', (tester) async {
     final settings = FakeSettings();
     final service = PlaygroundDictation();
@@ -131,6 +144,16 @@ void main() {
     await tester.tap(field);
     await tester.pump();
     expect(dictation.playgroundFocused, true);
+    await tester.enterText(field, 'Draft');
+    await tester.tap(find.text('Setup'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Home').first);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(field);
+    await tester.pumpAndSettle();
+    expect(find.text('Draft'), findsOneWidget);
+    await tester.tap(field);
+    await tester.pump();
     await dictation.handleShortcut('holdStart');
     expect(service.started, true);
     await dictation.handleShortcut('cancel');
@@ -153,7 +176,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Gemini connection'), findsOneWidget);
+    expect(find.text('Try dictation'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
   testWidgets('keyboard can focus the API key and save it', (tester) async {
@@ -169,6 +192,8 @@ void main() {
         home: SettingsView(controller: controller),
       ),
     );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Setup'));
     await tester.pumpAndSettle();
     final field = find.byType(TextField).first;
     final save = find.widgetWithText(TextButton, 'Save key');
@@ -207,12 +232,11 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Setup'));
+    await tester.pumpAndSettle();
     expect(find.text('Not checked'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.text('Recent dictations'),
-      250,
-      scrollable: find.byType(Scrollable).first,
-    );
+    await tester.tap(find.text('History'));
+    await tester.pumpAndSettle();
     expect(find.text('Recent dictations'), findsOneWidget);
     expect(find.text('Hello'), findsOneWidget);
   });

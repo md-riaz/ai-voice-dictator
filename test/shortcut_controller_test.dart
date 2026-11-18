@@ -18,6 +18,7 @@ class FakeDictation implements DictationService {
 }
 
 class FakeDesktop implements DesktopService {
+  @override Future<void> updateHud(String state, String message, int seconds) async {}
   @override
   Future<void> showHud() async {}
   @override

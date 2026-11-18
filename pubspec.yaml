@@ -57,6 +57,7 @@ dependencies:
   window_manager: ^0.6.0
   win32: ^6.4.0
   ffi: ^2.2.0
+  nativeapi: ^0.5.10
 
 dev_dependencies:
   flutter_test:

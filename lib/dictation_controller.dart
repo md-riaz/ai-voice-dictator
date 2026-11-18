@@ -98,9 +98,11 @@ class DictationController extends VeloraController {
         seconds.value = 0;
         hud.value = HudState.listening;
         message.value = '';
+        await desktop.updateHud(hud.value.name, message.value, seconds.value);
         await desktop.showHud();
         _timer = Timer.periodic(const Duration(seconds: 1), (_) {
           seconds.value++;
+          unawaited(desktop.updateHud(hud.value.name, message.value, seconds.value));
         });
       } else {
         _timer?.cancel();
@@ -108,8 +110,10 @@ class DictationController extends VeloraController {
         recording.value = false;
         await desktop.setRecording(false);
         hud.value = HudState.writing;
+        await desktop.updateHud(hud.value.name, message.value, seconds.value);
         await dictation.finish();
         hud.value = HudState.success;
+        await desktop.updateHud(hud.value.name, message.value, seconds.value);
         await Future<void>.delayed(const Duration(milliseconds: 400));
         await desktop.hideHud();
       }
@@ -134,6 +138,7 @@ class DictationController extends VeloraController {
                 .toString()
                 .replaceFirst('Bad state: ', '')
                 .replaceFirst('Exception: ', '');
+      await desktop.updateHud(hud.value.name, message.value, seconds.value);
       await desktop.showHud();
       await Future<void>.delayed(const Duration(seconds: 5));
       await desktop.hideHud();
