@@ -201,10 +201,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    final field = find.byWidgetPredicate(
-      (w) =>
-          w is TextField && w.decoration?.labelText == 'Dictation playground',
-    );
+    final field = find.byKey(const ValueKey('dictation-playground'));
     await tester.scrollUntilVisible(
       field,
       250,
@@ -270,6 +267,12 @@ void main() {
     await tester.tap(find.text('Setup'));
     await tester.pumpAndSettle();
     final field = find.byType(TextField).first;
+    final keyField = tester.widget<TextField>(field);
+    expect(keyField.obscureText, true);
+    expect(keyField.enableSuggestions, false);
+    expect(keyField.autocorrect, false);
+    expect(keyField.decoration?.labelText, isNull);
+    expect(find.text('Gemini API key'), findsOneWidget);
     final save = find.widgetWithText(TextButton, 'Save key');
     Future<void> tabTo(Finder target) async {
       for (var i = 0; i < 20; i++) {

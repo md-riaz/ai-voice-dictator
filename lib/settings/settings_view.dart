@@ -112,7 +112,6 @@ class _SettingsViewState extends State<SettingsView> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    final decoration = InputDecorationTheme.of(context);
     return Scaffold(
       backgroundColor: colors.surface,
       body: controller.pageLoading
@@ -259,20 +258,26 @@ class _SettingsViewState extends State<SettingsView> {
                                       ),
                                     ],
                                     const SizedBox(height: 20),
-                                    TextField(
-                                      controller: controller.key,
-                                      obscureText: true,
-                                      enableSuggestions: false,
-                                      autocorrect: false,
-                                      onChanged: controller.keyChanged,
-                                      decoration: InputDecoration(
-                                        labelText: 'Gemini API key',
-                                        hintText: 'Enter your API key',
-                                        prefixIcon: const Icon(
-                                          Icons.vpn_key_outlined,
+                                    Text(
+                                      'Gemini API key',
+                                      style: theme.textTheme.labelLarge,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Semantics(
+                                      label: 'Gemini API key',
+                                      child: TextField(
+                                        controller: controller.key,
+                                        obscureText: true,
+                                        enableSuggestions: false,
+                                        autocorrect: false,
+                                        onChanged: controller.keyChanged,
+                                        decoration: InputDecoration(
+                                          hintText: 'Enter your API key',
+                                          prefixIcon: const Icon(
+                                            Icons.vpn_key_outlined,
+                                          ),
                                         ),
-                                        border: const OutlineInputBorder(),
-                                      ).applyDefaults(decoration),
+                                      ),
                                     ),
                                     const SizedBox(height: 16),
                                     Wrap(
@@ -283,10 +288,12 @@ class _SettingsViewState extends State<SettingsView> {
                                       children: [
                                         VeloraButton(
                                           label: 'Save key',
+                                          size: VeloraButtonSize.small,
                                           onPressed: controller.saveKey,
                                         ),
                                         VeloraButton(
                                           label: 'Test connection',
+                                          size: VeloraButtonSize.small,
                                           variant: VeloraButtonVariant.outline,
                                           onPressed: controller.testKey,
                                         ),
@@ -321,6 +328,11 @@ class _SettingsViewState extends State<SettingsView> {
                                       'Click in the box, hold Ctrl + Win, wait for Listening, speak, then release.',
                                     ),
                                     const SizedBox(height: 8),
+                                    Text(
+                                      'Dictation playground',
+                                      style: theme.textTheme.labelLarge,
+                                    ),
+                                    const SizedBox(height: 8),
                                     Focus(
                                       onFocusChange: (focused) {
                                         if (widget.dictation != null) {
@@ -328,13 +340,17 @@ class _SettingsViewState extends State<SettingsView> {
                                               focused;
                                         }
                                       },
-                                      child: TextField(
-                                        controller: _playground,
-                                        maxLines: 3,
-                                        decoration: const InputDecoration(
-                                          labelText: 'Dictation playground',
-                                          hintText: 'Your words appear here',
-                                          border: OutlineInputBorder(),
+                                      child: Semantics(
+                                        label: 'Dictation playground',
+                                        child: TextField(
+                                          key: const ValueKey(
+                                            'dictation-playground',
+                                          ),
+                                          controller: _playground,
+                                          maxLines: 3,
+                                          decoration: const InputDecoration(
+                                            hintText: 'Your words appear here',
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -422,38 +438,54 @@ class _SettingsViewState extends State<SettingsView> {
                                       'Choose how your speech is transcribed.',
                                     ),
                                     const SizedBox(height: 20),
-                                    VeloraSelect<String>(
+                                    Text(
+                                      'Language mode',
+                                      style: theme.textTheme.labelLarge,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Semantics(
                                       label: 'Language mode',
-                                      value: controller.language,
-                                      options: const [
-                                        VeloraSelectOption(
-                                          value: 'auto',
-                                          label: 'Auto detect',
-                                        ),
-                                        VeloraSelectOption(
-                                          value: 'codeSwitching',
-                                          label: 'Code switching',
-                                        ),
-                                        VeloraSelectOption(
-                                          value: 'translate',
-                                          label: 'Translate',
-                                        ),
-                                      ],
-                                      onChanged: (value) {
-                                        if (value != null) {
-                                          controller.setLanguage(value);
-                                        }
-                                      },
+                                      child: DropdownButtonFormField<String>(
+                                        initialValue: controller.language,
+                                        isExpanded: true,
+                                        items: const [
+                                          DropdownMenuItem(
+                                            value: 'auto',
+                                            child: Text('Auto detect'),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 'codeSwitching',
+                                            child: Text('Code switching'),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 'translate',
+                                            child: Text('Translate'),
+                                          ),
+                                        ],
+                                        onChanged: (value) {
+                                          if (value != null) {
+                                            controller.setLanguage(value);
+                                          }
+                                        },
+                                      ),
                                     ),
                                     const SizedBox(height: 14),
-                                    VeloraTextField(
+                                    Text(
+                                      'Translation target language',
+                                      style: theme.textTheme.labelLarge,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Semantics(
                                       label: 'Translation target language',
-                                      controller: controller.target,
-                                      onSubmitted: _saveTarget,
+                                      child: TextField(
+                                        controller: controller.target,
+                                        onSubmitted: _saveTarget,
+                                      ),
                                     ),
                                     const SizedBox(height: 10),
                                     VeloraButton(
                                       label: 'Save target language',
+                                      size: VeloraButtonSize.small,
                                       icon: Icons.check_rounded,
                                       variant: VeloraButtonVariant.secondary,
                                       onPressed: () =>
@@ -478,33 +510,35 @@ class _SettingsViewState extends State<SettingsView> {
                                       'Select an input and check your audio level.',
                                     ),
                                     const SizedBox(height: 20),
-                                    DropdownButtonFormField<String>(
-                                      initialValue: controller.device,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Microphone',
-                                        prefixIcon: Icon(
-                                          Icons.mic_none_rounded,
-                                        ),
-                                        border: OutlineInputBorder(),
-                                      ),
-                                      items: [
-                                        const DropdownMenuItem(
-                                          value: null,
-                                          child: Text('System default'),
-                                        ),
-                                        ...controller.devices.map(
-                                          (d) => DropdownMenuItem(
-                                            value: d.id,
-                                            child: Text(
-                                              d.label,
-                                              overflow: TextOverflow.ellipsis,
+                                    Text(
+                                      'Microphone',
+                                      style: theme.textTheme.labelLarge,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Semantics(
+                                      label: 'Microphone',
+                                      child: DropdownButtonFormField<String>(
+                                        initialValue: controller.device,
+                                        isExpanded: true,
+                                        items: [
+                                          const DropdownMenuItem(
+                                            value: null,
+                                            child: Text('System default'),
+                                          ),
+                                          ...controller.devices.map(
+                                            (d) => DropdownMenuItem(
+                                              value: d.id,
+                                              child: Text(
+                                                d.label,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                      ],
-                                      onChanged: controller.testingMic
-                                          ? null
-                                          : controller.setDevice,
+                                        ],
+                                        onChanged: controller.testingMic
+                                            ? null
+                                            : controller.setDevice,
+                                      ),
                                     ),
                                     const SizedBox(height: 16),
                                     Wrap(
@@ -514,6 +548,7 @@ class _SettingsViewState extends State<SettingsView> {
                                           WrapCrossAlignment.center,
                                       children: [
                                         VeloraButton(
+                                          size: VeloraButtonSize.small,
                                           label: controller.testingMic
                                               ? 'Stop microphone test'
                                               : 'Test microphone',
