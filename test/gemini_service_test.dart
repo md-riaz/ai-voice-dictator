@@ -1,0 +1,78 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:ai_voice_dictator/guardrails.dart';
+import 'package:ai_voice_dictator/services/gemini_service.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+
+void main() {
+  late Directory dir;
+  late File audio;
+  setUp(() async {
+    dir = await Directory.systemTemp.createTemp('dictation_test_');
+    audio = File('${dir.path}/audio.wav');
+    await audio.writeAsBytes([1, 2, 3]);
+  });
+  tearDown(() => dir.delete(recursive: true));
+
+  test('fallback sends key in header and translates', () async {
+    var count = 0;
+    final client = MockClient((request) async {
+      expect(request.url.query, isEmpty);
+      expect(request.headers['x-goog-api-key'], 'secret');
+      final payload = jsonDecode(request.body);
+      expect(
+        payload['system_instruction']['parts'][0]['text'],
+        contains('French'),
+      );
+      if (count++ == 0) return http.Response('', 429);
+      return http.Response(
+        jsonEncode({
+          'candidates': [
+            {
+              'content': {
+                'parts': [
+                  {'text': 'Transcription: Bonjour.'},
+                ],
+              },
+            },
+          ],
+        }),
+        200,
+      );
+    });
+    final service = GeminiDictationService('secret', client: client);
+    expect(
+      await service.transcribe(
+        audio,
+        3,
+        mode: DictationLanguageMode.translate,
+        targetLanguage: 'French',
+      ),
+      'Bonjour.',
+    );
+    expect(count, 2);
+  });
+
+  test('errors do not include secret or provider response', () async {
+    final client = MockClient((_) async => http.Response('secret', 403));
+    final service = GeminiDictationService('secret', client: client);
+    try {
+      await service.transcribe(audio, 3);
+      fail('Expected an exception');
+    } on DictationException catch (e) {
+      expect(e.toString(), isNot(contains('secret')));
+    }
+  });
+  test('rejects unusually long model output', () {
+    expect(
+      () => DictationGuardrails.sanitizeResponse(
+        List.filled(16, 'word').join(' '),
+        2,
+      ),
+      throwsA(isA<DictationException>()),
+    );
+  });
+}
