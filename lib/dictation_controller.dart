@@ -20,6 +20,7 @@ class DictationController extends VeloraController {
   final settingsVisible = false.obs;
   final recording = false.obs;
   bool playgroundFocused = false;
+  bool Function(String)? insertPlayground;
   bool paused = false;
   bool _busy = false;
   bool _closing = false;
@@ -84,7 +85,7 @@ class DictationController extends VeloraController {
     if (_closing ||
         (paused && !_listening) ||
         _busy ||
-        (settingsVisible.value && !playgroundFocused)) {
+        (settingsVisible.value && !playgroundFocused && !_listening)) {
       return;
     }
     _busy = true;
@@ -102,7 +103,9 @@ class DictationController extends VeloraController {
         await desktop.showHud();
         _timer = Timer.periodic(const Duration(seconds: 1), (_) {
           seconds.value++;
-          unawaited(desktop.updateHud(hud.value.name, message.value, seconds.value));
+          unawaited(
+            desktop.updateHud(hud.value.name, message.value, seconds.value),
+          );
         });
       } else {
         _timer?.cancel();
@@ -114,7 +117,7 @@ class DictationController extends VeloraController {
         await dictation.finish();
         hud.value = HudState.success;
         await desktop.updateHud(hud.value.name, message.value, seconds.value);
-        await Future<void>.delayed(const Duration(milliseconds: 400));
+        await Future<void>.delayed(const Duration(milliseconds: 1200));
         await desktop.hideHud();
       }
     } catch (e) {

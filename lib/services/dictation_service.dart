@@ -21,14 +21,19 @@ class DictationService {
     this.desktop, {
     Transcribe? transcribe,
     this.canPaste,
+    this.playgroundActive,
+    this.insertPlayground,
   }) : _transcribe = transcribe ?? _transcribeWithGemini;
   final SettingsStore settings;
   final AudioService audio;
   final DesktopService desktop;
   final Transcribe _transcribe;
   final bool Function()? canPaste;
+  final bool Function()? playgroundActive;
+  final bool Function(String)? insertPlayground;
   int _target = 0;
   bool _translate = false;
+  bool _playgroundTarget = false;
 
   static Future<String> _transcribeWithGemini(
     File file,
@@ -49,6 +54,7 @@ class DictationService {
     }
     _target = desktop.captureTarget();
     if (_target == 0) throw StateError('No active window found.');
+    _playgroundTarget = playgroundActive?.call() ?? false;
     _translate = translate;
     await audio.start(deviceId: settings.deviceId());
   }
@@ -80,7 +86,16 @@ class DictationService {
           'The input focus changed. Copy the transcript from history.',
         );
       }
-      await desktop.paste(text, _target);
+      if (_playgroundTarget) {
+        if (playgroundActive?.call() != true ||
+            insertPlayground?.call(text) != true) {
+          throw StateError(
+            'The playground lost focus. Copy the transcript from history.',
+          );
+        }
+      } else {
+        await desktop.paste(text, _target);
+      }
     } finally {
       if (await recording.file.exists()) await recording.file.delete();
     }

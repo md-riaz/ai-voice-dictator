@@ -15,13 +15,14 @@ import 'package:ai_voice_dictator/services/dictation_service.dart';
 
 class FakeSettings implements SettingsStore {
   String? savedKey;
+  String initialKey = 'saved-key';
   @override
   Future<void> saveApiKey(String key) async {
     savedKey = key;
   }
 
   @override
-  Future<String> apiKey() async => 'saved-key';
+  Future<String> apiKey() async => initialKey;
   @override
   String targetLanguage() => 'English';
   @override
@@ -57,9 +58,9 @@ class FakeSettingsService implements SettingsService {
   String? testedKey;
   bool closed = false;
   @override
-  Future<List<InputDevice>> listDevices() => devicesPending?.future ?? Future.value([
-    const InputDevice(id: 'device', label: 'Mic'),
-  ]);
+  Future<List<InputDevice>> listDevices() =>
+      devicesPending?.future ??
+      Future.value([const InputDevice(id: 'device', label: 'Mic')]);
   @override
   Future<bool> hasPermission() => permission.future;
   @override
@@ -85,7 +86,8 @@ class PlaygroundDictation implements DictationService {
 }
 
 class PlaygroundDesktop implements DesktopService {
-  @override Future<void> updateHud(String state, String message, int seconds) async {}
+  @override
+  Future<void> updateHud(String state, String message, int seconds) async {}
   @override
   Future<void> showHud() async {}
   @override
@@ -98,10 +100,48 @@ class PlaygroundDesktop implements DesktopService {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  testWidgets('first launch requires a validated saved key before home', (
+    tester,
+  ) async {
+    final service = FakeSettingsService();
+    final controller = SettingsController(
+      store: FakeSettings()..initialKey = '',
+      service: service,
+      onShortcutChanged: (_, _) async {},
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ui.VeloraTheme.light(),
+        home: SettingsView(controller: controller),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Gemini connection'), findsOneWidget);
+    expect(find.text('Try dictation'), findsNothing);
+    await tester.tap(find.text('Home'));
+    await tester.pumpAndSettle();
+    expect(find.text('Gemini connection'), findsOneWidget);
+    await tester.enterText(find.byType(TextField).first, 'new-key');
+    await tester.tap(find.text('Save key'));
+    await tester.pump();
+    service.validation.complete(200);
+    await tester.pumpAndSettle();
+    expect(find.text('Try dictation'), findsOneWidget);
+  });
   testWidgets('settings opens when device enumeration stalls', (tester) async {
-    final service = FakeSettingsService()..devicesPending = Completer<List<InputDevice>>();
-    final controller = SettingsController(store: FakeSettings(), service: service, onShortcutChanged: (_, _) async {});
-    await tester.pumpWidget(MaterialApp(theme: ui.VeloraTheme.light(), home: SettingsView(controller: controller)));
+    final service = FakeSettingsService()
+      ..devicesPending = Completer<List<InputDevice>>();
+    final controller = SettingsController(
+      store: FakeSettings(),
+      service: service,
+      onShortcutChanged: (_, _) async {},
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ui.VeloraTheme.light(),
+        home: SettingsView(controller: controller),
+      ),
+    );
     await tester.pump();
     expect(controller.pageLoading, true);
     await tester.pump(const Duration(seconds: 4));
@@ -145,13 +185,16 @@ void main() {
     await tester.pump();
     expect(dictation.playgroundFocused, true);
     await tester.enterText(field, 'Draft');
+    expect(dictation.insertPlayground?.call(' transcript'), true);
+    await tester.pump();
+    expect(find.text('Draft transcript'), findsOneWidget);
     await tester.tap(find.text('Setup'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Home').first);
     await tester.pumpAndSettle();
     await tester.ensureVisible(field);
     await tester.pumpAndSettle();
-    expect(find.text('Draft'), findsOneWidget);
+    expect(find.text('Draft transcript'), findsOneWidget);
     await tester.tap(field);
     await tester.pump();
     await dictation.handleShortcut('holdStart');

@@ -24,6 +24,14 @@ void main() {
       expect(request.headers['x-goog-api-key'], 'secret');
       final payload = jsonDecode(request.body);
       expect(
+        payload['generationConfig']['thinkingConfig']['thinkingLevel'],
+        'minimal',
+      );
+      expect(
+        request.url.path,
+        '/v1beta/models/${count == 0 ? 'gemini-3.5-flash-lite' : 'gemini-3.1-flash-lite'}:generateContent',
+      );
+      expect(
         payload['system_instruction']['parts'][0]['text'],
         contains('French'),
       );
@@ -66,11 +74,27 @@ void main() {
       expect(e.toString(), isNot(contains('secret')));
     }
   });
-  test('explains a quota failure after both models reject the request', () async {
-    final client = MockClient((_) async => http.Response('private response', 429));
-    final service = GeminiDictationService('secret', client: client);
-    await expectLater(service.transcribe(audio, 3), throwsA(isA<DictationException>().having((e) => e.message, 'message', contains('429')).having((e) => e.toString(), 'redacted', isNot(contains('secret')))));
-  });
+  test(
+    'explains a quota failure after both models reject the request',
+    () async {
+      final client = MockClient(
+        (_) async => http.Response('private response', 429),
+      );
+      final service = GeminiDictationService('secret', client: client);
+      await expectLater(
+        service.transcribe(audio, 3),
+        throwsA(
+          isA<DictationException>()
+              .having((e) => e.message, 'message', contains('429'))
+              .having(
+                (e) => e.toString(),
+                'redacted',
+                isNot(contains('secret')),
+              ),
+        ),
+      );
+    },
+  );
   test('rejects unusually long model output', () {
     expect(
       () => DictationGuardrails.sanitizeResponse(

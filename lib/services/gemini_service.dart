@@ -63,7 +63,7 @@ class GeminiDictationService {
   final String apiKey;
   final http.Client? _client;
   static const maxAudioBytes = 12 * 1024 * 1024;
-  static const models = ['gemini-3.1-flash-lite', 'gemini-3.5-flash'];
+  static const models = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
 
   Future<String> transcribe(
     File audioFile,
@@ -126,7 +126,11 @@ class GeminiDictationService {
           ],
         },
       ],
-      'generationConfig': {'temperature': 0.0, 'topP': 0.95},
+      'generationConfig': {
+        'temperature': 0.0,
+        'topP': 0.95,
+        'thinkingConfig': {'thinkingLevel': 'minimal'},
+      },
     });
     final client = _client ?? http.Client();
     try {

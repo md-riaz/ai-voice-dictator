@@ -59,6 +59,10 @@ class AppModule {
         desktop,
         canPaste: () =>
             !controller.settingsVisible.value || controller.playgroundFocused,
+        playgroundActive: () =>
+            controller.settingsVisible.value && controller.playgroundFocused,
+        insertPlayground: (text) =>
+            controller.insertPlayground?.call(text) ?? false,
       ),
       settings,
       desktop,

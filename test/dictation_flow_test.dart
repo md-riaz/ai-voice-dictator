@@ -66,7 +66,12 @@ void main() {
     await dir.delete(recursive: true);
   });
 
-  Future<void> runFlow(FlowDesktop desktop, {int status = 200}) async {
+  Future<void> runFlow(
+    FlowDesktop desktop, {
+    int status = 200,
+    bool Function()? playgroundActive,
+    bool Function(String)? insertPlayground,
+  }) async {
     final audio = FlowAudio(file);
     final client = MockClient((request) async {
       expect(request.headers['x-goog-api-key'], 'test-key');
@@ -93,6 +98,8 @@ void main() {
       settings,
       audio,
       desktop,
+      playgroundActive: playgroundActive,
+      insertPlayground: insertPlayground,
       transcribe: (file, duration, key, mode, target) => GeminiDictationService(
         key,
         client: client,
@@ -121,6 +128,24 @@ void main() {
     expect((await settings.history()).single.text, 'Hello world.');
     expect(await file.exists(), false);
   });
+  test(
+    'inserts into the playground without simulating a system paste',
+    () async {
+      final desktop = FlowDesktop();
+      String? inserted;
+      await runFlow(
+        desktop,
+        playgroundActive: () => true,
+        insertPlayground: (text) {
+          inserted = text;
+          return true;
+        },
+      );
+      expect(inserted, 'Hello world.');
+      expect(desktop.pasted, isNull);
+      expect((await settings.history()).single.text, 'Hello world.');
+    },
+  );
   test(
     'cleans recording without storing or pasting on API rejection',
     () async {

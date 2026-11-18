@@ -42,6 +42,8 @@ class SettingsController extends VeloraController {
   String keyStatus = 'Key missing';
   String? pageError;
   bool pageLoading = true;
+  bool needsSetup = true;
+  bool _keySaved = false;
   bool testingMic = false;
   double level = 0;
 
@@ -55,7 +57,9 @@ class SettingsController extends VeloraController {
       final key = await store.apiKey().timeout(const Duration(seconds: 8));
       List<InputDevice> devices;
       try {
-        devices = await service.listDevices().timeout(const Duration(seconds: 3));
+        devices = await service.listDevices().timeout(
+          const Duration(seconds: 3),
+        );
       } catch (_) {
         devices = [];
       }
@@ -72,6 +76,8 @@ class SettingsController extends VeloraController {
         device = devices.any((d) => d.id == savedDevice) ? savedDevice : null;
         this.history = history;
         keyStatus = key.isEmpty ? 'Key missing' : 'Not checked';
+        needsSetup = key.isEmpty;
+        _keySaved = key.isNotEmpty;
         pageLoading = false;
       });
     } catch (_) {
@@ -85,9 +91,19 @@ class SettingsController extends VeloraController {
   }
 
   void keyChanged(String value) {
-    _updateState(
-      () => keyStatus = value.trim().isEmpty ? 'Key missing' : 'Not checked',
-    );
+    _updateState(() {
+      _keySaved = false;
+      keyStatus = value.trim().isEmpty ? 'Key missing' : 'Not checked';
+    });
+  }
+
+  Future<void> refreshHistory() async {
+    try {
+      final entries = await store.history();
+      _updateState(() => history = entries);
+    } catch (_) {
+      _updateState(() => pageError = 'Could not load dictation history.');
+    }
   }
 
   Future<void> saveKey() async {
@@ -95,7 +111,11 @@ class SettingsController extends VeloraController {
       final savedKey = key.text.trim();
       await store.saveApiKey(savedKey);
       if (!_closed && key.text.trim() == savedKey) {
-        _updateState(() => pageError = null);
+        _updateState(() {
+          pageError = null;
+          _keySaved = savedKey.isNotEmpty;
+          if (savedKey.isEmpty) needsSetup = true;
+        });
         if (savedKey.isEmpty) {
           _updateState(() => keyStatus = 'Key missing');
         } else {
@@ -122,11 +142,12 @@ class SettingsController extends VeloraController {
     try {
       final statusCode = await service.validateKey(key);
       if (!_closed && this.key.text.trim() == key) {
-        _updateState(
-          () => keyStatus = statusCode == 200
+        _updateState(() {
+          keyStatus = statusCode == 200
               ? 'Connected'
-              : 'Validation failed (HTTP $statusCode)',
-        );
+              : 'Validation failed (HTTP $statusCode)';
+          if (statusCode == 200 && _keySaved) needsSetup = false;
+        });
       }
     } catch (_) {
       if (!_closed && this.key.text.trim() == key) {
