@@ -33,6 +33,9 @@ class FlowDesktop implements DesktopService {
   FlowDesktop({this.changed = false});
   final bool changed;
   String? pasted;
+  String? copied;
+  @override
+  Future<void> copyTranscript(String text) async => copied = text;
   @override
   int captureTarget() => 123;
   @override
@@ -69,6 +72,7 @@ void main() {
   Future<void> runFlow(
     FlowDesktop desktop, {
     int status = 200,
+    bool Function()? canPaste,
     bool Function()? playgroundActive,
     bool Function(String)? insertPlayground,
   }) async {
@@ -98,6 +102,7 @@ void main() {
       settings,
       audio,
       desktop,
+      canPaste: canPaste,
       playgroundActive: playgroundActive,
       insertPlayground: insertPlayground,
       transcribe: (file, duration, key, mode, target) => GeminiDictationService(
@@ -118,6 +123,7 @@ void main() {
     final desktop = FlowDesktop();
     await runFlow(desktop);
     expect(desktop.pasted, 'Hello world.');
+    expect(desktop.copied, 'Hello world.');
     expect((await settings.history()).single.text, 'Hello world.');
     expect(await file.exists(), false);
   });
@@ -125,6 +131,7 @@ void main() {
     final desktop = FlowDesktop(changed: true);
     await expectLater(runFlow(desktop), throwsStateError);
     expect(desktop.pasted, isNull);
+    expect(desktop.copied, 'Hello world.');
     expect((await settings.history()).single.text, 'Hello world.');
     expect(await file.exists(), false);
   });
@@ -143,9 +150,20 @@ void main() {
       );
       expect(inserted, 'Hello world.');
       expect(desktop.pasted, isNull);
+      expect(desktop.copied, 'Hello world.');
       expect((await settings.history()).single.text, 'Hello world.');
     },
   );
+  test('copies the transcript even if input focus changes', () async {
+    final desktop = FlowDesktop();
+    await expectLater(
+      runFlow(desktop, canPaste: () => false),
+      throwsStateError,
+    );
+    expect(desktop.copied, 'Hello world.');
+    expect(desktop.pasted, isNull);
+    expect((await settings.history()).single.text, 'Hello world.');
+  });
   test(
     'cleans recording without storing or pasting on API rejection',
     () async {

@@ -215,6 +215,9 @@ class DesktopService with TrayListener {
         'GetForegroundWindow',
       )();
 
+  Future<void> copyTranscript(String text) =>
+      Clipboard.setData(ClipboardData(text: text));
+
   Future<void> paste(String text, int target) async {
     if (text.isEmpty) throw StateError('No text to paste.');
     final keyState = _user32
@@ -229,12 +232,12 @@ class DesktopService with TrayListener {
     }
     if (modifiersHeld()) {
       throw StateError(
-        'Release the shortcut keys. Copy the transcript from history.',
+        'Release the shortcut keys. The transcript is on the clipboard.',
       );
     }
     if (target == 0 || captureTarget() != target) {
       throw StateError(
-        'The target window changed. Copy the transcript from history.',
+        'The target window changed. The transcript is on the clipboard.',
       );
     }
     await Clipboard.setData(ClipboardData(text: text));

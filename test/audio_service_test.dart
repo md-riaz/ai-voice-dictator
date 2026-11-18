@@ -103,21 +103,27 @@ void main() {
       final result = ByteData.sublistView(await file.readAsBytes());
       expect(result.getUint16(22, Endian.little), 2);
       expect(result.getUint32(24, Endian.little), 48000);
-      expect(result.getInt16(44 + 4800 * 4, Endian.little), 4000);
+      expect(result.getInt16(44 + 20000 * 4, Endian.little), 4000);
     } finally {
       await dir.delete(recursive: true);
     }
   });
-  test('trims quiet edges and applies bounded gain', () async {
+  test('preserves quiet edges and applies bounded gain', () async {
     final dir = await Directory.systemTemp.createTemp('audio_test_');
     try {
       final file = File('${dir.path}/test.wav');
-      await file.writeAsBytes(wav());
+      final original = wav();
+      ByteData.sublistView(original).setInt16(44 + 10 * 2, 100, Endian.little);
+      await file.writeAsBytes(original);
       await normalizeRecordedWav(file);
       final output = await file.readAsBytes();
-      expect(output.length, lessThan(32044));
+      expect(output.length, 32044);
       expect(
-        ByteData.sublistView(output).getInt16(44 + 1600 * 2, Endian.little),
+        ByteData.sublistView(output).getInt16(44 + 10 * 2, Endian.little),
+        400,
+      );
+      expect(
+        ByteData.sublistView(output).getInt16(44 + 6000 * 2, Endian.little),
         4000,
       );
     } finally {

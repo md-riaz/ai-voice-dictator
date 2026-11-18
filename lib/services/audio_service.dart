@@ -91,8 +91,6 @@ Future<void> normalizeRecordedWav(File file) async {
     );
   }
   final samples = sampleLength ~/ (channels * 2);
-  var first = samples;
-  var last = -1;
   var peak = 0;
   for (var i = 0; i < samples; i++) {
     for (var channel = 0; channel < channels; channel++) {
@@ -100,22 +98,16 @@ Future<void> normalizeRecordedWav(File file) async {
           .getInt16(sampleOffset + (i * channels + channel) * 2, Endian.little)
           .abs();
       peak = math.max(peak, value);
-      if (value >= 300) {
-        first = math.min(first, i);
-        last = i;
-      }
     }
   }
-  if (last < 0) {
+  if (peak < 300) {
     throw const DictationException(
       'audio_silent',
       'No speech detected. Check your microphone.',
     );
   }
-  // shortcut: threshold detects quiet signal rather than speech, upgrade to VAD for noise discrimination.
-  first = math.max(0, first - sampleRate ~/ 10);
-  last = math.min(samples - 1, last + sampleRate ~/ 10);
-  final outSize = (last - first + 1) * channels * 2;
+  // shortcut: peak detects sound rather than speech; use VAD for noise discrimination.
+  final outSize = samples * channels * 2;
   final output = Uint8List(44 + outSize);
   final out = ByteData.sublistView(output);
   void writeTag(int offset, String value) =>
@@ -134,14 +126,14 @@ Future<void> normalizeRecordedWav(File file) async {
   writeTag(36, 'data');
   out.setUint32(40, outSize, Endian.little);
   final gain = math.min(4.0, 31128 / peak);
-  for (var i = first; i <= last; i++) {
+  for (var i = 0; i < samples; i++) {
     for (var channel = 0; channel < channels; channel++) {
       final sample = data.getInt16(
         sampleOffset + (i * channels + channel) * 2,
         Endian.little,
       );
       out.setInt16(
-        44 + ((i - first) * channels + channel) * 2,
+        44 + (i * channels + channel) * 2,
         (sample * gain).round().clamp(-32768, 32767),
         Endian.little,
       );

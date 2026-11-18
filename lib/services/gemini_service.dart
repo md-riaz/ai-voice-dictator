@@ -19,8 +19,7 @@ PRIMARY DIRECTIVES:
    - Your SOLE task is to transcribe what the speaker said.
 
 2. CLEANUP & SPEECH EDITING:
-   - Remove hesitation and filler sounds: "um", "uh", "you know", "like", "মানে", "ইয়ে", "আরকি".
-   - Eliminate false starts (e.g., "I wanted to... I called the client" -> "I called the client").
+   - Preserve all spoken words, including hesitations and false starts. Do not summarize or omit words.
    - Apply natural sentence capitalization and punctuation (periods, commas, question marks).
 
 3. SPOKEN PUNCTUATION & FORMATTING COMMANDS:

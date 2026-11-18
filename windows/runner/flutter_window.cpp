@@ -13,6 +13,7 @@ HWND key_window = nullptr;
 HWND hud_window = nullptr;
 std::wstring hud_text = L"Listening...";
 COLORREF hud_color = RGB(255, 104, 104);
+bool hud_success = false;
 bool ctrl = false, win = false, alt = false, space = false;
 bool hold_started = false, chord_used = false, recording = false;
 constexpr UINT_PTR kHoldTimer = 102;
@@ -35,15 +36,25 @@ LRESULT CALLBACK HudProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) 
     HBRUSH dot = CreateSolidBrush(hud_color);
     HGDIOBJ oldBrush = SelectObject(dc, dot);
     HGDIOBJ oldPen = SelectObject(dc, GetStockObject(NULL_PEN));
-    Ellipse(dc, 18, 24, 32, 38);
+    if (!hud_success) Ellipse(dc, 18, 25, 32, 39);
     SelectObject(dc, oldBrush); SelectObject(dc, oldPen); DeleteObject(dot);
+    if (hud_success) {
+      HPEN pen = CreatePen(PS_SOLID, 3, hud_color);
+      HGDIOBJ previous = SelectObject(dc, pen);
+      MoveToEx(dc, 18, 32, nullptr); LineTo(dc, 23, 37); LineTo(dc, 33, 26);
+      SelectObject(dc, previous); DeleteObject(pen);
+    }
     SetBkMode(dc, TRANSPARENT); SetTextColor(dc, RGB(245, 245, 250));
     HFONT font = CreateFontW(-17, 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE,
                             DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
                             CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
     HGDIOBJ oldFont = SelectObject(dc, font);
-    RECT text = {45, 8, bounds.right - 14, bounds.bottom - 8};
-    DrawTextW(dc, hud_text.c_str(), -1, &text, DT_LEFT | DT_VCENTER | DT_WORDBREAK | DT_END_ELLIPSIS | DT_NOPREFIX);
+    RECT measured = {45, 0, bounds.right - 14, 0};
+    DrawTextW(dc, hud_text.c_str(), -1, &measured, DT_LEFT | DT_WORDBREAK | DT_CALCRECT | DT_NOPREFIX);
+    const int height = measured.bottom - measured.top;
+    const LONG top = (bounds.bottom - height) / 2;
+    RECT text = {45, top > 4 ? top : 4, bounds.right - 14, bounds.bottom - 4};
+    DrawTextW(dc, hud_text.c_str(), -1, &text, DT_LEFT | DT_WORDBREAK | DT_END_ELLIPSIS | DT_NOPREFIX);
     SelectObject(dc, oldFont); DeleteObject(font);
     EndPaint(hwnd, &paint); return 0;
   }
@@ -180,11 +191,12 @@ bool FlutterWindow::OnCreate() {
         const std::string* s = state == args->end() ? nullptr : std::get_if<std::string>(&state->second);
         const std::string* m = message == args->end() ? nullptr : std::get_if<std::string>(&message->second);
         const int32_t* n = seconds == args->end() ? nullptr : std::get_if<int32_t>(&seconds->second);
+        hud_success = s && *s == "success";
         if (s && *s == "listening") {
           hud_text = L"Listening...  " + std::to_wstring(n ? *n / 60 : 0) + L":" + ((n && *n % 60 >= 10) ? L"" : L"0") + std::to_wstring(n ? *n % 60 : 0);
           hud_color = RGB(255, 104, 104);
         } else if (s && *s == "writing") { hud_text = L"Writing..."; hud_color = RGB(101, 210, 238); }
-        else if (s && *s == "success") { hud_text = L"Inserted!"; hud_color = RGB(105, 220, 150); }
+        else if (s && *s == "success") { hud_text = L"Done"; hud_color = RGB(105, 220, 150); }
         else if (s && *s == "error") { hud_text = m && !m->empty() ? Wide(*m) : L"Error occurred"; hud_color = RGB(255, 194, 90); }
         if (hud_window) InvalidateRect(hud_window, nullptr, TRUE);
       }

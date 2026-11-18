@@ -44,6 +44,8 @@ class FakeDesktop implements DesktopService {
   @override
   int captureTarget() => 42;
   @override
+  Future<void> copyTranscript(String text) async => events.add('copy:$text');
+  @override
   Future<void> paste(String text, int target) async {
     events.add('paste:$text:$target');
   }
@@ -68,7 +70,7 @@ void main() {
     );
     await service.start();
     await expectLater(service.finish(), throwsStateError);
-    expect(settings.events, ['history:Hello']);
+    expect(settings.events, ['copy:Hello', 'history:Hello']);
     expect(await file.exists(), false);
   });
   test('saves transcript before paste and deletes temporary audio', () async {
@@ -88,7 +90,7 @@ void main() {
     );
     await service.start(translate: true);
     await service.finish();
-    expect(settings.events, ['history:Hello', 'paste:Hello:42']);
+    expect(settings.events, ['copy:Hello', 'history:Hello', 'paste:Hello:42']);
     expect(await file.exists(), false);
   });
   test('deletes temporary audio when transcription fails', () async {

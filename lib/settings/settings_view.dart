@@ -294,7 +294,7 @@ class _SettingsViewState extends State<SettingsView> {
                                     ),
                                     const SizedBox(height: 8),
                                     const Text(
-                                      'Click in the box, hold Ctrl + Win, speak, then release.',
+                                      'Click in the box, hold Ctrl + Win, wait for Listening, speak, then release.',
                                     ),
                                     const SizedBox(height: 8),
                                     Focus(

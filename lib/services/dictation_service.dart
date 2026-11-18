@@ -77,20 +77,26 @@ class DictationService {
         mode,
         settings.targetLanguage(),
       );
-      await settings.addHistory(
-        text,
-        Duration(milliseconds: recording.durationMs),
-      );
+      try {
+        await desktop.copyTranscript(text);
+      } catch (_) {
+        throw StateError('Could not copy the transcript. Find it in history.');
+      } finally {
+        await settings.addHistory(
+          text,
+          Duration(milliseconds: recording.durationMs),
+        );
+      }
       if (canPaste != null && !canPaste!()) {
         throw StateError(
-          'The input focus changed. Copy the transcript from history.',
+          'The input focus changed. The transcript is on the clipboard.',
         );
       }
       if (_playgroundTarget) {
         if (playgroundActive?.call() != true ||
             insertPlayground?.call(text) != true) {
           throw StateError(
-            'The playground lost focus. Copy the transcript from history.',
+            'The playground lost focus. The transcript is on the clipboard.',
           );
         }
       } else {
