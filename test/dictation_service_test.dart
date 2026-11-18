@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:ai_voice_dictator/services/audio_service.dart';
+import 'package:ai_voice_dictator/guardrails.dart';
 import 'package:ai_voice_dictator/services/desktop_service.dart';
 import 'package:ai_voice_dictator/services/dictation_service.dart';
 import 'package:ai_voice_dictator/services/gemini_service.dart';
@@ -38,6 +39,12 @@ class FakeAudio implements AudioService {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+class EmptyAudio extends FakeAudio {
+  EmptyAudio(super.file);
+  @override
+  Future<RecordedAudioResult?> stop() async => null;
+}
+
 class FakeDesktop implements DesktopService {
   FakeDesktop(this.events);
   final List<String> events;
@@ -55,6 +62,23 @@ class FakeDesktop implements DesktopService {
 }
 
 void main() {
+  test('explains when no audio was captured', () async {
+    final dir = await Directory.systemTemp.createTemp('dictation_test');
+    addTearDown(() => dir.delete(recursive: true));
+    final settings = FakeSettings();
+    final service = DictationService(
+      settings,
+      EmptyAudio(File('${dir.path}/audio.wav')),
+      FakeDesktop(settings.events),
+    );
+    await service.start();
+    await expectLater(
+      service.finish(),
+      throwsA(
+        isA<DictationException>().having((e) => e.code, 'code', 'audio_empty'),
+      ),
+    );
+  });
   test('keeps transcript in history when playground focus is lost', () async {
     final dir = await Directory.systemTemp.createTemp('dictation_test');
     addTearDown(() => dir.delete(recursive: true));

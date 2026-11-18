@@ -61,7 +61,12 @@ class DictationService {
 
   Future<void> finish() async {
     final recording = await audio.stop();
-    if (recording == null) throw StateError('Recording failed.');
+    if (recording == null) {
+      throw const DictationException(
+        'audio_empty',
+        'No audio was captured. Wait for Listening, speak, then release. Check your microphone if it continues.',
+      );
+    }
     try {
       DictationGuardrails.validateAudio(recording.file, recording.durationMs);
       final mode = _translate

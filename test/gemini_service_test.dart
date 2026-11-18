@@ -35,6 +35,14 @@ void main() {
         payload['system_instruction']['parts'][0]['text'],
         contains('French'),
       );
+      expect(
+        payload['system_instruction']['parts'][0]['text'],
+        contains('Remove meaningless hesitation'),
+      );
+      expect(
+        payload['system_instruction']['parts'][0]['text'],
+        contains('keeping English words and phrases in English'),
+      );
       if (count++ == 0) return http.Response('', 429);
       return http.Response(
         jsonEncode({

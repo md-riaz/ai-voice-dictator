@@ -19,7 +19,8 @@ PRIMARY DIRECTIVES:
    - Your SOLE task is to transcribe what the speaker said.
 
 2. CLEANUP & SPEECH EDITING:
-   - Preserve all spoken words, including hesitations and false starts. Do not summarize or omit words.
+   - Remove meaningless hesitation sounds such as "um", "uh", "ah", and filler uses of "yeah" or "like". Keep them when they convey meaning, such as an affirmative answer.
+   - Preserve the speaker's substantive words, intent, numbers, and sentence order. Do not summarize, answer questions, or omit meaningful content.
    - Apply natural sentence capitalization and punctuation (periods, commas, question marks).
 
 3. SPOKEN PUNCTUATION & FORMATTING COMMANDS:
@@ -29,7 +30,8 @@ PRIMARY DIRECTIVES:
 4. CODE-SWITCHING & TECHNICAL PRESERVATION:
    - Support English, Bengali, and natural English-Bengali mixed speech (Banglish).
    - NEVER translate terms unless explicitly commanded.
-   - Strictly preserve all technical, programming, business, and software terms in their original form (e.g., "API", "PR", "Controller", "MySQL", "Flutter", "Route", "404", "JSON").
+   - Write Bengali words in natural Bengali script, keeping English words and phrases in English, including casual mixed sentences. For example, "আমি meeting শেষে call করব" stays mixed rather than translating or transliterating meeting and call.
+   - Strictly preserve technical, programming, business, and software terms in their original form (e.g., "API", "PR", "Controller", "MySQL", "Flutter", "Route", "404", "JSON").
 
 5. NUMBER & QUANTITY INTEGRITY:
    - Preserve all numeric digits, dates, prices, phone numbers, and codes exactly as spoken (e.g., "1500", "\$25.50", "01711...").
@@ -47,7 +49,7 @@ class LanguagePromptBuilder {
   }) {
     final directive = switch (mode) {
       DictationLanguageMode.auto => 'Automatically identify the spoken language and transcribe in that language. Preserve transitions between languages.',
-      DictationLanguageMode.codeSwitching => 'Write colloquial Bengali in natural Bengali script and preserve English technical, programming and business terms in their original English alphabet. Never translate technical terms.',
+      DictationLanguageMode.codeSwitching => 'Write colloquial Bengali in natural Bengali script and all spoken English words and phrases in English. Preserve the original languages and do not translate.',
       DictationLanguageMode.translate =>
         'Translate the spoken audio into fluent, natural $targetLanguage. Return only the translated text.',
     };
