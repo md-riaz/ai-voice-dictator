@@ -23,6 +23,7 @@ Future<void> main() async {
   final settings = SettingsStore();
   await settings.initialize();
   late final DictationController controller;
+  var exiting = false;
   final desktop = DesktopService(
     onHotkey: () => unawaited(controller.toggle()),
     onTranslate: () => unawaited(controller.toggle(translate: true)),
@@ -30,8 +31,13 @@ Future<void> main() async {
     onSettingsClosed: () => controller.settingsVisible.value = false,
     onPause: () => controller.paused = !controller.paused,
     onExit: () async {
-      await controller.close();
-      await windowManager.destroy();
+      if (exiting) return;
+      exiting = true;
+      try {
+        await controller.close();
+      } finally {
+        await windowManager.destroy();
+      }
     },
   );
   controller = DictationController(settings, AudioService(), desktop);

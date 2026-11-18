@@ -20,14 +20,19 @@ class DictationController extends VeloraController {
   final settingsVisible = false.obs;
   bool paused = false;
   bool _busy = false;
+  bool _closing = false;
+  Completer<void>? _operationDone;
   bool _listening = false;
   bool _translate = false;
   int _target = 0;
   Timer? _timer;
 
   Future<void> toggle({bool translate = false}) async {
-    if ((paused && !_listening) || _busy || settingsVisible.value) return;
+    if (_closing || (paused && !_listening) || _busy || settingsVisible.value) {
+      return;
+    }
     _busy = true;
+    _operationDone = Completer<void>();
     try {
       if (!_listening) {
         if ((await settings.apiKey()).isEmpty) {
@@ -107,16 +112,21 @@ class DictationController extends VeloraController {
       await desktop.hideHud();
     } finally {
       _busy = false;
+      _operationDone?.complete();
+      _operationDone = null;
     }
   }
 
   Future<void> showSettings() async {
-    if (_busy || _listening) return;
+    if (_closing || _busy || _listening) return;
     settingsVisible.value = true;
     await desktop.showSettings();
   }
 
   Future<void> close() async {
+    if (_closing) return;
+    _closing = true;
+    await _operationDone?.future;
     _timer?.cancel();
     await audio.dispose();
     await settings.close();
