@@ -6,6 +6,7 @@ import 'package:ai_voice_dictator/settings/settings_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:velora_ui/velora_ui.dart' as ui;
 import 'package:ai_voice_dictator/settings/settings_view.dart';
 import 'package:record/record.dart';
 
@@ -63,6 +64,27 @@ class FakeSettingsService implements SettingsService {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  testWidgets('settings renders at narrow width with the dark Velora theme', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(400, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final controller = SettingsController(
+      store: FakeSettings(),
+      service: FakeSettingsService(),
+      onShortcutChanged: (_, _) async {},
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ui.VeloraTheme.dark(),
+        home: SettingsView(controller: controller),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Gemini connection'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('keyboard can focus the API key and save it', (tester) async {
     final store = FakeSettings();
     final controller = SettingsController(
@@ -71,11 +93,14 @@ void main() {
       onShortcutChanged: (_, _) async {},
     );
     await tester.pumpWidget(
-      MaterialApp(home: SettingsView(controller: controller)),
+      MaterialApp(
+        theme: ui.VeloraTheme.light(),
+        home: SettingsView(controller: controller),
+      ),
     );
     await tester.pumpAndSettle();
     final field = find.byType(TextField).first;
-    final save = find.widgetWithText(FilledButton, 'Save key');
+    final save = find.widgetWithText(TextButton, 'Save key');
     Future<void> tabTo(Finder target) async {
       for (var i = 0; i < 20; i++) {
         final focus = FocusManager.instance.primaryFocus;
@@ -105,7 +130,10 @@ void main() {
       onShortcutChanged: (_, _) async {},
     );
     await tester.pumpWidget(
-      MaterialApp(home: SettingsView(controller: controller)),
+      MaterialApp(
+        theme: ui.VeloraTheme.light(),
+        home: SettingsView(controller: controller),
+      ),
     );
     await tester.pumpAndSettle();
     expect(find.text('Not checked'), findsOneWidget);

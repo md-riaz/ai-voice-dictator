@@ -1071,6 +1071,15 @@ packages:
       url: "https://github.com/md-riaz/velora-flutter.git"
     source: git
     version: "0.0.1"
+  velora_ui:
+    dependency: "direct main"
+    description:
+      path: "packages/velora_ui"
+      ref: "5db25ef02eae447b300ec73c6a49e5ea8e905bcf"
+      resolved-ref: "5db25ef02eae447b300ec73c6a49e5ea8e905bcf"
+      url: "https://github.com/md-riaz/velora-flutter.git"
+    source: git
+    version: "0.0.1"
   vm_service:
     dependency: transitive
     description:

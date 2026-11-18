@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:velora/velora.dart';
+import 'package:velora_ui/velora_ui.dart' as ui;
 
 import 'app_module.dart';
 import 'settings/settings_view.dart';
@@ -30,10 +31,15 @@ class DictatorApp extends StatelessWidget {
     return MaterialApp(
       title: 'AI Voice Dictator',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(colorSchemeSeed: Colors.indigo, useMaterial3: true),
+      theme: ui.VeloraTheme.light(),
+      darkTheme: ui.VeloraTheme.dark(),
+      themeMode: ThemeMode.system,
       home: Obx(
         () => controller.settingsVisible.value
-            ? SettingsView(controller: module.settingsController())
+            ? SettingsView(
+                controller: module.settingsController(),
+                onClose: controller.desktop.onWindowClose,
+              )
             : FloatingHudOverlay(
                 state: controller.hud.value,
                 message: controller.message.value,
