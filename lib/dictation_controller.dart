@@ -3,16 +3,15 @@ import 'dart:async';
 import 'package:velora/velora.dart';
 
 import 'guardrails.dart';
-import 'services/audio_service.dart';
 import 'services/desktop_service.dart';
-import 'services/gemini_service.dart';
+import 'services/dictation_service.dart';
 import 'settings/settings_store.dart';
 import 'ui/floating_hud.dart';
 
 class DictationController extends VeloraController {
-  DictationController(this.settings, this.audio, this.desktop);
+  DictationController(this.dictation, this.settings, this.desktop);
+  final DictationService dictation;
   final SettingsStore settings;
-  final AudioService audio;
   final DesktopService desktop;
   final hud = HudState.listening.obs;
   final message = ''.obs;
@@ -23,8 +22,6 @@ class DictationController extends VeloraController {
   bool _closing = false;
   Completer<void>? _operationDone;
   bool _listening = false;
-  bool _translate = false;
-  int _target = 0;
   Timer? _timer;
 
   Future<void> toggle({bool translate = false}) async {
@@ -35,16 +32,7 @@ class DictationController extends VeloraController {
     _operationDone = Completer<void>();
     try {
       if (!_listening) {
-        if ((await settings.apiKey()).isEmpty) {
-          throw const DictationException(
-            'key_missing',
-            'Please set your Gemini API key in Settings.',
-          );
-        }
-        _target = desktop.captureTarget();
-        if (_target == 0) throw StateError('No active window found.');
-        _translate = translate;
-        await audio.start(deviceId: settings.deviceId());
+        await dictation.start(translate: translate);
         _listening = true;
         seconds.value = 0;
         hud.value = HudState.listening;
@@ -57,47 +45,17 @@ class DictationController extends VeloraController {
         _timer?.cancel();
         _listening = false;
         hud.value = HudState.writing;
-        final recording = await audio.stop();
-        if (recording == null) throw StateError('Recording failed.');
-        try {
-          DictationGuardrails.validateAudio(
-            recording.file,
-            recording.durationMs,
-          );
-          final mode = _translate
-              ? DictationLanguageMode.translate
-              : DictationLanguageMode.values.firstWhere(
-                  (m) => m.name == settings.language(),
-                  orElse: () => DictationLanguageMode.auto,
-                );
-          final text = await GeminiDictationService(await settings.apiKey())
-              .transcribe(
-                recording.file,
-                recording.durationSec,
-                mode: mode,
-                targetLanguage: settings.targetLanguage(),
-              );
-          await settings.addHistory(
-            text,
-            Duration(milliseconds: recording.durationMs),
-          );
-          await desktop.paste(text, _target);
-          hud.value = HudState.success;
-          await Future<void>.delayed(const Duration(milliseconds: 400));
-          await desktop.hideHud();
-        } finally {
-          if (await recording.file.exists()) await recording.file.delete();
-        }
+        await dictation.finish();
+        hud.value = HudState.success;
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+        await desktop.hideHud();
       }
     } catch (e) {
       _timer?.cancel();
       if (_listening) {
         _listening = false;
         try {
-          final recording = await audio.stop();
-          if (recording != null && await recording.file.exists()) {
-            await recording.file.delete();
-          }
+          await dictation.cancel();
         } catch (_) {}
       }
       hud.value = HudState.error;
@@ -128,7 +86,7 @@ class DictationController extends VeloraController {
     _closing = true;
     await _operationDone?.future;
     _timer?.cancel();
-    await audio.dispose();
+    await dictation.dispose();
     await settings.close();
     await desktop.dispose();
   }

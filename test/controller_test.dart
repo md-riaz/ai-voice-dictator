@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:ai_voice_dictator/dictation_controller.dart';
 import 'package:ai_voice_dictator/services/audio_service.dart';
 import 'package:ai_voice_dictator/services/desktop_service.dart';
+import 'package:ai_voice_dictator/services/dictation_service.dart';
 import 'package:ai_voice_dictator/settings/settings_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -51,7 +52,12 @@ void main() {
     () async {
       final settings = TestSettings();
       final audio = TestAudio();
-      final controller = DictationController(settings, audio, TestDesktop());
+      final desktop = TestDesktop();
+      final controller = DictationController(
+        DictationService(settings, audio, desktop),
+        settings,
+        desktop,
+      );
       final operation = controller.toggle();
       final closing = controller.close();
       await Future<void>.delayed(Duration.zero);
