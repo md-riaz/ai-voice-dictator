@@ -682,6 +682,28 @@ class _SettingsViewState extends State<SettingsView> {
                                 ),
                               ),
                             if (_page == 1) const SizedBox(height: 16),
+                            if (_page == 1)
+                              VeloraCard(
+                                elevated: false,
+                                color: colors.surfaceContainerLowest,
+                                padding: const EdgeInsets.all(24),
+                                child: SwitchListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  title: const Text('Launch at sign-in'),
+                                  subtitle: Text(
+                                    controller.autoStart == null
+                                        ? 'Unavailable on this device.'
+                                        : 'Start AI Voice Dictator when you sign in to Windows.',
+                                  ),
+                                  value: controller.autoStart ?? false,
+                                  onChanged:
+                                      controller.autoStart == null ||
+                                          controller.changingAutoStart
+                                      ? null
+                                      : controller.setAutoStart,
+                                ),
+                              ),
+                            if (_page == 1) const SizedBox(height: 16),
                             if (_page == 2)
                               VeloraCard(
                                 elevated: false,

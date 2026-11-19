@@ -72,7 +72,7 @@ ThemeData buildVoiceTheme(Brightness brightness) {
   );
 }
 
-Future<void> main() async {
+Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
   await Velora.boot(
     config: const VeloraConfig(
@@ -80,7 +80,7 @@ Future<void> main() async {
       apiBaseUrl: 'https://generativelanguage.googleapis.com',
     ),
   );
-  final module = await AppModule.create();
+  final module = await AppModule.create(launchArguments: args);
   runApp(DictatorApp(module: module));
   if (kDebugMode ||
       module.startupError != null ||

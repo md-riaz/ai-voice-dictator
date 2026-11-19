@@ -1097,8 +1097,8 @@ packages:
     dependency: "direct main"
     description:
       path: "packages/velora"
-      ref: d744d9334cf0bf417496f162cc59af48addcc811
-      resolved-ref: d744d9334cf0bf417496f162cc59af48addcc811
+      ref: "5c393ccc1a53a54c491a73690af6747452d4fb16"
+      resolved-ref: "5c393ccc1a53a54c491a73690af6747452d4fb16"
       url: "https://github.com/md-riaz/velora-flutter.git"
     source: git
     version: "0.0.1"
@@ -1106,8 +1106,8 @@ packages:
     dependency: "direct main"
     description:
       path: "packages/velora_desktop"
-      ref: d744d9334cf0bf417496f162cc59af48addcc811
-      resolved-ref: d744d9334cf0bf417496f162cc59af48addcc811
+      ref: "5c393ccc1a53a54c491a73690af6747452d4fb16"
+      resolved-ref: "5c393ccc1a53a54c491a73690af6747452d4fb16"
       url: "https://github.com/md-riaz/velora-flutter.git"
     source: git
     version: "0.0.1"
@@ -1115,8 +1115,8 @@ packages:
     dependency: "direct dev"
     description:
       path: "packages/velora_lints"
-      ref: d744d9334cf0bf417496f162cc59af48addcc811
-      resolved-ref: d744d9334cf0bf417496f162cc59af48addcc811
+      ref: "5c393ccc1a53a54c491a73690af6747452d4fb16"
+      resolved-ref: "5c393ccc1a53a54c491a73690af6747452d4fb16"
       url: "https://github.com/md-riaz/velora-flutter.git"
     source: git
     version: "0.0.1"
@@ -1124,8 +1124,8 @@ packages:
     dependency: "direct main"
     description:
       path: "packages/velora_ui"
-      ref: d744d9334cf0bf417496f162cc59af48addcc811
-      resolved-ref: d744d9334cf0bf417496f162cc59af48addcc811
+      ref: "5c393ccc1a53a54c491a73690af6747452d4fb16"
+      resolved-ref: "5c393ccc1a53a54c491a73690af6747452d4fb16"
       url: "https://github.com/md-riaz/velora-flutter.git"
     source: git
     version: "0.0.1"

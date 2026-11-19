@@ -109,6 +109,34 @@ class PlaygroundDesktop implements DesktopService {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   test(
+    'launch at sign-in reflects system state and handles failed changes',
+    () async {
+      var enabled = true;
+      var fail = false;
+      final controller = SettingsController(
+        store: FakeSettings(),
+        service: FakeSettingsService(),
+        onShortcutChanged: (_, _) async {},
+        getAutoStart: () async => enabled,
+        onAutoStartChanged: (value) async {
+          if (fail) throw StateError('failed');
+          enabled = value;
+        },
+      );
+      await controller.load();
+      expect(controller.autoStart, isTrue);
+      await controller.setAutoStart(false);
+      expect(enabled, isFalse);
+      expect(controller.autoStart, isFalse);
+      fail = true;
+      await controller.setAutoStart(true);
+      expect(controller.autoStart, isFalse);
+      expect(controller.pageError, 'Could not update launch at sign-in.');
+      await controller.closeResources();
+      controller.onClose();
+    },
+  );
+  test(
     'persists selected and custom Gemini model IDs and rejects URLs',
     () async {
       final store = FakeSettings();

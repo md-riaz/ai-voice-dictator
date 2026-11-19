@@ -20,7 +20,9 @@ class AppModule {
   String? startupError;
   SettingsController? _activeSettings;
 
-  static Future<AppModule> create() async {
+  static Future<AppModule> create({
+    List<String> launchArguments = const [],
+  }) async {
     final settings = SettingsStore();
     await settings.initialize();
     late final DictationController controller;
@@ -69,7 +71,7 @@ class AppModule {
       desktop,
     );
     module = AppModule._(settings, desktop, controller);
-    await desktop.initialize();
+    await desktop.initialize(launchArguments: launchArguments);
     if (!desktop.hotkeysAvailable) {
       module.startupError =
           'Global shortcuts could not be started. Restart the app.';
@@ -82,6 +84,12 @@ class AppModule {
         store: settings,
         service: SettingsService(),
         onShortcutChanged: desktop.registerShortcuts,
+        getAutoStart: desktop.autoStartAvailable
+            ? desktop.isAutoStartEnabled
+            : null,
+        onAutoStartChanged: desktop.autoStartAvailable
+            ? desktop.setAutoStart
+            : null,
         initialError:
             startupError ??
             (controller.hud.value == HudState.error &&

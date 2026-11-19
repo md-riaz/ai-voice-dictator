@@ -13,11 +13,15 @@ class SettingsController extends VeloraController {
     required this.store,
     required this.service,
     required this.onShortcutChanged,
+    this.getAutoStart,
+    this.onAutoStartChanged,
     this.initialError,
   });
   final SettingsStore store;
   final SettingsService service;
   final Future<void> Function(String, String) onShortcutChanged;
+  final Future<bool> Function()? getAutoStart;
+  final Future<void> Function(bool)? onAutoStartChanged;
   final String? initialError;
   bool _closed = false;
   Completer<void>? _micOperation;
@@ -52,6 +56,8 @@ class SettingsController extends VeloraController {
   bool _keySaved = false;
   int _keyCheckVersion = 0;
   bool testingMic = false;
+  bool? autoStart;
+  bool changingAutoStart = false;
   double level = 0;
 
   void initialize() {
@@ -71,6 +77,14 @@ class SettingsController extends VeloraController {
         devices = [];
       }
       final history = await store.history().timeout(const Duration(seconds: 8));
+      bool? autoStart;
+      if (getAutoStart != null && onAutoStartChanged != null) {
+        try {
+          autoStart = await getAutoStart!();
+        } catch (_) {
+          autoStart = null;
+        }
+      }
       if (_closed) return;
       _updateState(() {
         this.key.text = key;
@@ -85,6 +99,7 @@ class SettingsController extends VeloraController {
         final savedDevice = store.deviceId();
         device = devices.any((d) => d.id == savedDevice) ? savedDevice : null;
         this.history = history;
+        this.autoStart = autoStart;
         keyStatus = key.isEmpty ? 'Key missing' : 'Checking saved key…';
         needsSetup = key.isEmpty;
         _keySaved = key.isNotEmpty;
@@ -277,6 +292,24 @@ class SettingsController extends VeloraController {
   Future<void> setDevice(String? value) async {
     await store.setDeviceId(value);
     _updateState(() => device = value);
+  }
+
+  Future<void> setAutoStart(bool value) async {
+    if (changingAutoStart || autoStart == null || onAutoStartChanged == null) {
+      return;
+    }
+    _updateState(() => changingAutoStart = true);
+    try {
+      await onAutoStartChanged!(value);
+      _updateState(() {
+        autoStart = value;
+        pageError = null;
+      });
+    } catch (_) {
+      _updateState(() => pageError = 'Could not update launch at sign-in.');
+    } finally {
+      _updateState(() => changingAutoStart = false);
+    }
   }
 
   Future<void> closeResources() => _cleanup ??= _closeResources();

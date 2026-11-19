@@ -2,13 +2,14 @@
 import 'dart:ffi' hide Size;
 import 'dart:io';
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hotkey_manager/hotkey_manager.dart';
 import 'package:nativeapi/nativeapi.dart' as nativeapi;
-import 'package:nativeapi_flutter/nativeapi_flutter.dart' show ImageAsset;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/legacy.dart';
 import 'package:velora_desktop/velora_desktop.dart';
 
@@ -20,11 +21,7 @@ bool isTrayActivation(nativeapi.TrayIconEvent event) =>
 class _TrayPort implements VeloraDesktopTrayPort {
   _TrayPort(this.owner);
   final DesktopService owner;
-  nativeapi.TrayIcon? _icon;
-  nativeapi.Menu? _menu;
-  final _items = <nativeapi.MenuItem>[];
-  final _listeners = <int>[];
-  int? _iconListener;
+  final _tray = TrayManagerAdapter();
 
   @override
   Future<bool> setup({
@@ -33,72 +30,53 @@ class _TrayPort implements VeloraDesktopTrayPort {
     required void Function() onShow,
     required void Function() onQuit,
   }) async {
-    _icon = nativeapi.TrayIcon.create();
-    _menu = nativeapi.Menu.create();
-    if (_icon == null || _menu == null) {
-      await dispose();
-      return false;
+    final ready = await _tray.setup(
+      config: config,
+      onActivate: owner.onSettings,
+      onShow: owner.onSettings,
+      onQuit: owner.onExit,
+    );
+    if (ready) {
+      await _tray.setMenuItems(
+        showLabel: 'Settings',
+        quitLabel: 'Exit',
+        items: [
+          VeloraTrayMenuItem(
+            id: 'pause',
+            label: 'Pause / Resume',
+            onTap: owner.onPause,
+          ),
+        ],
+        onShow: owner.onSettings,
+        onQuit: owner.onExit,
+      );
     }
-    try {
-      _icon!.icon = ImageAsset.fromAsset(config.iconAsset);
-      _icon!.setTooltip(config.tooltip ?? 'AI Voice Dictator');
-      // Tray actions must also update app state and complete shutdown cleanup.
-      for (final item in [
-        ('Settings', owner.onSettings),
-        ('Pause / Resume', owner.onPause),
-        ('Exit', owner.onExit),
-      ]) {
-        final menuItem = nativeapi.MenuItem.createWithLabelAndType(
-          item.$1,
-          nativeapi.MenuItemType.normal,
-        );
-        if (menuItem == null) {
-          await dispose();
-          return false;
-        }
-        _items.add(menuItem);
-        _listeners.add(
-          menuItem.addListener((event) {
-            if (event is nativeapi.MenuItemClickedEvent) item.$2();
-          }),
-        );
-        _menu!.addItem(menuItem);
-      }
-      _icon!.setContextMenu(_menu);
-      _icon!.setContextMenuTrigger(nativeapi.ContextMenuTrigger.rightClicked);
-      _iconListener = _icon!.addListener((event) {
-        if (isTrayActivation(event)) {
-          owner.onSettings();
-        }
-      });
-      return true;
-    } catch (_) {
-      await dispose();
-      rethrow;
-    }
+    return ready;
   }
 
   @override
-  Future<void> dispose() async {
-    final icon = _icon;
-    if (icon != null) {
-      if (_iconListener != null) icon.removeListener(_iconListener!);
-      icon.setContextMenu(null);
-      icon.dispose();
-    }
-    _icon = null;
-    _iconListener = null;
-    for (var i = 0; i < _items.length; i++) {
-      if (i < _listeners.length) _items[i].removeListener(_listeners[i]);
-    }
-    _menu?.dispose();
-    _menu = null;
-    for (final item in _items) {
-      item.dispose();
-    }
-    _items.clear();
-    _listeners.clear();
-  }
+  Future<void> dispose() => _tray.dispose();
+
+  @override
+  Future<void> setIcon(String assetPath) => _tray.setIcon(assetPath);
+
+  @override
+  Future<void> setTooltip(String? tooltip) => _tray.setTooltip(tooltip);
+
+  @override
+  Future<void> setMenuItems({
+    required String showLabel,
+    required String quitLabel,
+    required List<VeloraTrayMenuItem> items,
+    required void Function() onShow,
+    required void Function() onQuit,
+  }) => _tray.setMenuItems(
+    showLabel: showLabel,
+    quitLabel: quitLabel,
+    items: items,
+    onShow: owner.onSettings,
+    onQuit: owner.onExit,
+  );
 }
 
 final class _MouseInput extends Struct {
@@ -164,9 +142,11 @@ class DesktopService {
   String? _translation;
   bool hotkeysAvailable = false;
   late final VeloraDesktopCoordinator _desktop;
+  final _window = WindowManagerAdapter();
+  late final SharedPreferencesStorageAdapter _storage;
   StreamSubscription<VeloraDesktopEvent>? _desktopEvents;
 
-  Future<void> initialize() async {
+  Future<void> initialize({List<String> launchArguments = const []}) async {
     if (!Platform.isWindows) throw UnsupportedError('Windows is required.');
     await windowManager.ensureInitialized();
     _keyChannel.setMethodCallHandler((call) async {
@@ -177,16 +157,23 @@ class DesktopService {
     debugPrint(
       'Global shortcuts: ${hotkeysAvailable ? 'ready' : 'unavailable'}',
     );
+    _storage = SharedPreferencesStorageAdapter(
+      await SharedPreferences.getInstance(),
+    );
     _desktop = VeloraDesktopCoordinator(
-      config: const VeloraDesktopConfig(
+      config: VeloraDesktopConfig(
         appId: 'com.mdriaz.aivoicedictator',
         appName: 'AI Voice Dictator',
-        tray: VeloraTrayConfig(iconAsset: 'assets/tray_icon.ico'),
+        launchArguments: launchArguments,
+        tray: const VeloraTrayConfig(iconAsset: 'assets/tray_icon.ico'),
         closeToTray: true,
-        singleInstance: false,
+        singleInstance: true,
       ),
-      window: WindowManagerAdapter(),
+      window: _window,
       tray: _TrayPort(this),
+      singleInstance: WindowsSingleInstanceAdapter(),
+      autoStart: NativeApiAutoStartAdapter(),
+      storage: _storage,
     );
     await _desktop.initialize();
     if (!_desktop.capabilities.window || !_desktop.capabilities.tray) {
@@ -195,9 +182,29 @@ class DesktopService {
     _desktopEvents = _desktop.events.listen((event) {
       if (event.type == VeloraDesktopEventType.closeRequested &&
           event.data['hidden'] == true) {
+        unawaited(_saveBounds());
         onSettingsClosed();
       }
+      if (event.type == VeloraDesktopEventType.secondaryLaunch) onSettings();
     });
+  }
+
+  bool get autoStartAvailable => _desktop.capabilities.autoStart;
+  Future<bool> isAutoStartEnabled() => _desktop.isAutoStartEnabled();
+  Future<void> setAutoStart(bool enabled) => _desktop.setAutoStart(enabled);
+
+  Future<void> _saveBounds() async {
+    try {
+      final bounds = await _window.getBounds();
+      if (bounds != null) {
+        await _storage.set(
+          VeloraDesktopCoordinator.boundsKey,
+          jsonEncode(bounds.toJson()),
+        );
+      }
+    } catch (_) {
+      // Window closing must not depend on saving its bounds.
+    }
   }
 
   Future<void> setRecording(bool active) =>
@@ -335,19 +342,19 @@ class DesktopService {
     await windowManager.setBackgroundColor(Colors.white);
     await windowManager.setAlwaysOnTop(false);
     await windowManager.setSkipTaskbar(false);
-    await windowManager.setSize(const Size(800, 600));
-    await windowManager.center();
     await windowManager.show();
     await windowManager.focus();
   }
 
   void onWindowClose() {
     onSettingsClosed();
+    unawaited(_saveBounds());
     _desktop.hide();
   }
 
   Future<void> dispose() async {
     await _clearShortcuts();
+    await _saveBounds();
     await _desktopEvents?.cancel();
     await _desktop.dispose();
   }
