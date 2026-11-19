@@ -32,6 +32,12 @@ class FakeSettings implements SettingsStore {
   Future<void> setHistoryRetention(int days) async => retention = days;
   @override
   bool typeText() => false;
+  bool savedStreamPreview = false;
+  @override
+  bool streamPreview() => savedStreamPreview;
+  @override
+  Future<void> setStreamPreview(bool value) async =>
+      savedStreamPreview = value;
   String savedModel = SettingsStore.defaultModel;
   @override
   String model() => savedModel;
@@ -523,6 +529,27 @@ void main() {
     await tester.tap(find.text('Stats'));
     await tester.pumpAndSettle();
     expect(find.text('No dictation stats yet'), findsOneWidget);
+  });
+  testWidgets('stream preview toggle can be changed in setup', (tester) async {
+    final store = FakeSettings();
+    final controller = SettingsController(
+      store: store,
+      service: FakeSettingsService(),
+      onShortcutChanged: (_, _, _) async {},
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ui.VeloraTheme.light(),
+        home: SettingsView(controller: controller),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Setup'));
+    await tester.pumpAndSettle();
+    expect(find.text('Live HUD streaming preview'), findsOneWidget);
+    await tester.tap(find.text('Live HUD streaming preview'));
+    await tester.pumpAndSettle();
+    expect(store.savedStreamPreview, true);
   });
   testWidgets('clear history requires confirmation', (tester) async {
     final store = FakeSettings();

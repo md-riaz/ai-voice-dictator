@@ -113,6 +113,7 @@ class GeminiDictationService {
     int durationSec, {
     DictationLanguageMode mode = DictationLanguageMode.auto,
     String targetLanguage = 'English',
+    void Function(String)? onChunk,
   }) async {
     if (apiKey.trim().isEmpty) {
       throw const DictationException(
@@ -190,6 +191,60 @@ class GeminiDictationService {
               'thinkingConfig': {'thinkingLevel': 'minimal'},
           },
         });
+        if (onChunk != null) {
+          try {
+            final request = http.Request(
+              'POST',
+              Uri.https(
+                'generativelanguage.googleapis.com',
+                '/v1beta/models/$model:streamGenerateContent',
+                {'alt': 'sse', 'key': apiKey},
+              ),
+            );
+            request.headers['Content-Type'] = 'application/json';
+            request.body = body;
+            final streamedResponse = await client
+                .send(request)
+                .timeout(const Duration(seconds: 25));
+            if (streamedResponse.statusCode == 200) {
+              final accumulated = StringBuffer();
+              await for (final line in streamedResponse.stream
+                  .transform(utf8.decoder)
+                  .transform(const LineSplitter())) {
+                if (line.startsWith('data: ')) {
+                  final jsonStr = line.substring(6).trim();
+                  if (jsonStr.isNotEmpty) {
+                    try {
+                      final json =
+                          jsonDecode(jsonStr) as Map<String, dynamic>;
+                      final candidates = json['candidates'] as List<dynamic>?;
+                      final content = candidates?.firstOrNull?['content']
+                          as Map<String, dynamic>?;
+                      final parts = content?['parts'] as List<dynamic>?;
+                      final chunkText = parts
+                              ?.map((part) => part['text'] as String? ?? '')
+                              .join() ??
+                          '';
+                      if (chunkText.isNotEmpty) {
+                        accumulated.write(chunkText);
+                        onChunk(accumulated.toString());
+                      }
+                    } catch (_) {}
+                  }
+                }
+              }
+              final fullText = accumulated.toString();
+              if (fullText.isNotEmpty) {
+                return DictationGuardrails.sanitizeResponse(
+                  fullText,
+                  durationSec,
+                );
+              }
+            }
+          } catch (e) {
+            debugPrint('Gemini streaming fallback to unary: $e');
+          }
+        }
         for (var attempt = 0; attempt < 2; attempt++) {
           http.Response response;
           try {

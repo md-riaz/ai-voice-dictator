@@ -45,12 +45,19 @@ class DictationService {
     DictationLanguageMode mode,
     String target,
     String model,
-    String? systemPrompt,
-  ) => GeminiDictationService(
+    String? systemPrompt, {
+    void Function(String)? onChunk,
+  }) => GeminiDictationService(
     key,
     model: model,
     systemPrompt: systemPrompt,
-  ).transcribe(file, duration, mode: mode, targetLanguage: target);
+  ).transcribe(
+    file,
+    duration,
+    mode: mode,
+    targetLanguage: target,
+    onChunk: onChunk,
+  );
 
   Future<void> start({bool translate = false}) async {
     await _checkPasswordField();
@@ -65,7 +72,7 @@ class DictationService {
     await audio.start(deviceId: settings.deviceId());
   }
 
-  Future<void> finish() async {
+  Future<void> finish({void Function(String)? onChunk}) async {
     historySaveFailed = false;
     final recording = await audio.stop();
     if (recording == null) {
@@ -93,6 +100,7 @@ class DictationService {
             target,
             model,
             settings.systemPrompt(),
+            onChunk: onChunk,
           );
       final text = await transcribe(
         recording.file,

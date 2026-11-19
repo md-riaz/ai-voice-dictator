@@ -27,7 +27,7 @@ class FloatingHudOverlay extends StatelessWidget {
       HudState.writing => (
         Colors.cyanAccent,
         Icons.hourglass_top_rounded,
-        'Turning speech into text…',
+        message.isNotEmpty ? message : 'Turning speech into text…',
       ),
       HudState.success => (
         Colors.greenAccent,

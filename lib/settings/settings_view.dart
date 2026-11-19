@@ -969,6 +969,38 @@ class _SettingsViewState extends State<SettingsView> {
                                 ),
                               ),
                             if (_page == 3) const SizedBox(height: 16),
+                            if (_page == 3)
+                              VeloraCard(
+                                elevated: false,
+                                color: colors.surfaceContainerLowest,
+                                padding: const EdgeInsets.all(24),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _heading(
+                                      context,
+                                      Icons.science_outlined,
+                                      'Experimental features',
+                                      'Optional advanced features for power users.',
+                                    ),
+                                    const SizedBox(height: 16),
+                                    SwitchListTile(
+                                      contentPadding: EdgeInsets.zero,
+                                      title: const Text(
+                                        'Live HUD streaming preview',
+                                      ),
+                                      subtitle: Text(
+                                        controller.streamPreview
+                                            ? 'Streaming preview active. Words appear in the floating HUD in real-time as Gemini generates them.'
+                                            : 'Stream words in real-time in the floating HUD as Gemini generates them before pasting.',
+                                      ),
+                                      value: controller.streamPreview,
+                                      onChanged: controller.setStreamPreview,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            if (_page == 3) const SizedBox(height: 16),
                             if (_page == 1)
                               _buildStatsSection(context, theme, colors),
                             if (_page == 1) const SizedBox(height: 16),

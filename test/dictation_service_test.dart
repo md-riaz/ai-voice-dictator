@@ -24,6 +24,8 @@ class FakeSettings implements SettingsStore {
   @override
   bool typeText() => false;
   @override
+  bool streamPreview() => false;
+  @override
   Future<void> addHistory(String text, Duration duration) async {
     events.add('history:$text');
   }

@@ -135,6 +135,9 @@ class SettingsStore {
   bool typeText() => _prefs.getBool('type_text') ?? false;
   Future<void> setTypeText(bool value) async =>
       _prefs.setBool('type_text', value);
+  bool streamPreview() => _prefs.getBool('stream_preview') ?? false;
+  Future<void> setStreamPreview(bool value) async =>
+      _prefs.setBool('stream_preview', value);
   int historyRetention() {
     final days = _prefs.getInt('history_retention_days') ?? 0;
     return [0, 30, 90, 365].contains(days) ? days : 0;

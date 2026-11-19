@@ -56,6 +56,7 @@ class SettingsController extends VeloraController {
   String? device;
   String language = 'auto';
   bool typeText = false;
+  bool streamPreview = false;
   String shortcut = 'Ctrl+Win';
   String translationShortcut = 'Ctrl+Win+Alt';
   String handsFreeKey = 'Space';
@@ -119,6 +120,7 @@ class SettingsController extends VeloraController {
             store.systemPrompt() ?? kDictationSystemInstruction.trim();
         language = store.language();
         typeText = store.typeText();
+        streamPreview = store.streamPreview();
         shortcut = store.shortcut();
         translationShortcut = store.translationShortcut();
         handsFreeKey = store.handsFreeKey();
@@ -202,6 +204,15 @@ class SettingsController extends VeloraController {
       if (version == _historyVersion) {
         _updateState(() => historyLoadingMore = false);
       }
+    }
+  }
+
+  Future<void> setStreamPreview(bool value) async {
+    try {
+      await store.setStreamPreview(value);
+      _updateState(() => streamPreview = value);
+    } catch (_) {
+      _updateState(() => pageError = 'Could not save streaming preview setting.');
     }
   }
 

@@ -166,13 +166,34 @@ class DictationController extends VeloraController {
         processing = true;
         await desktop.setRecording(false);
         hud.value = HudState.writing;
+        message.value = '';
         await desktop.updateHud(hud.value.name, message.value, seconds.value);
-        await dictation.finish();
+        final useStream = settings.streamPreview();
+        await dictation.finish(
+          onChunk: useStream
+              ? (accumulated) {
+                  final text =
+                      accumulated.trim().replaceAll(RegExp(r'\s+'), ' ');
+                  final display = text.length > 38
+                      ? '…${text.substring(text.length - 35)}'
+                      : text;
+                  message.value = display;
+                  unawaited(
+                    desktop.updateHud(
+                      hud.value.name,
+                      message.value,
+                      seconds.value,
+                    ),
+                  );
+                }
+              : null,
+        );
         if (dictation.historySaveFailed) {
           hud.value = HudState.error;
           message.value = 'Text sent, but history could not be saved.';
         } else {
           hud.value = HudState.success;
+          message.value = '';
         }
         await desktop.updateHud(hud.value.name, message.value, seconds.value);
         _scheduleHudHide(
