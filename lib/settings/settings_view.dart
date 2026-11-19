@@ -72,8 +72,9 @@ class _SettingsViewState extends State<SettingsView> {
     try {
       await controller.saveModel();
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Gemini model saved.')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Gemini model saved.')));
       }
     } on FormatException {
       if (mounted) {
@@ -317,7 +318,8 @@ class _SettingsViewState extends State<SettingsView> {
                                             : controller.keyStatus.startsWith(
                                                     'Validation failed',
                                                   ) ||
-                                                  controller.keyStatus == 'Could not check connection'
+                                                  controller.keyStatus ==
+                                                      'Could not check connection'
                                             ? VeloraStatus.error
                                             : VeloraStatus.info,
                                       ),
@@ -511,8 +513,8 @@ class _SettingsViewState extends State<SettingsView> {
                                           'Language mode still applies.',
                                           style: theme.textTheme.bodySmall
                                               ?.copyWith(
-                                            color: colors.onSurfaceVariant,
-                                          ),
+                                                color: colors.onSurfaceVariant,
+                                              ),
                                         ),
                                       ),
                                       const SizedBox(height: 14),
@@ -553,22 +555,94 @@ class _SettingsViewState extends State<SettingsView> {
                               VeloraCard(
                                 elevated: false,
                                 color: colors.surfaceContainerLowest,
-                                padding: const EdgeInsets.all(24),
+                                padding: const EdgeInsets.all(28),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'Try dictation',
-                                      style: theme.textTheme.titleMedium,
+                                      'SIGNAL DESK  /  DICTATION',
+                                      style: theme.textTheme.labelMedium
+                                          ?.copyWith(
+                                            color: colors.secondary,
+                                            fontWeight: FontWeight.w800,
+                                            letterSpacing: 1.2,
+                                          ),
                                     ),
-                                    const SizedBox(height: 8),
+                                    const SizedBox(height: 12),
                                     Text(
-                                      'Click in the box, hold ${controller.shortcut.replaceAll('+', ' + ')}, wait for “Speak now”, then speak and release.',
+                                      'Speak. Review. Deliver.',
+                                      style: theme.textTheme.headlineSmall
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w800,
+                                          ),
                                     ),
-                                    const SizedBox(height: 8),
+                                    const SizedBox(height: 6),
                                     Text(
-                                      'Dictation playground',
-                                      style: theme.textTheme.labelLarge,
+                                      'Hold your shortcut anywhere. Use this desk to practise and inspect the result.',
+                                      style: theme.textTheme.bodyMedium
+                                          ?.copyWith(
+                                            color: colors.onSurfaceVariant,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 24),
+                                    Wrap(
+                                      spacing: 6,
+                                      runSpacing: 6,
+                                      crossAxisAlignment:
+                                          WrapCrossAlignment.center,
+                                      children: [
+                                        Text(
+                                          'HOLD',
+                                          style: theme.textTheme.labelMedium
+                                              ?.copyWith(
+                                                color: colors.onSurfaceVariant,
+                                                fontWeight: FontWeight.w800,
+                                                letterSpacing: 1,
+                                              ),
+                                        ),
+                                        for (final key
+                                            in controller.shortcut.split('+'))
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 6,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              border: Border.all(
+                                                color: colors.outlineVariant,
+                                              ),
+                                              color: colors.surfaceContainerLow,
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              key,
+                                              style: theme.textTheme.labelLarge
+                                                  ?.copyWith(
+                                                    fontWeight: FontWeight.w800,
+                                                  ),
+                                            ),
+                                          ),
+                                        Text(
+                                          'RELEASE TO DELIVER',
+                                          style: theme.textTheme.labelMedium
+                                              ?.copyWith(
+                                                color: colors.onSurfaceVariant,
+                                                fontWeight: FontWeight.w800,
+                                                letterSpacing: 1,
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 28),
+                                    Text(
+                                      'TRANSCRIPT',
+                                      style: theme.textTheme.labelMedium
+                                          ?.copyWith(
+                                            color: colors.secondary,
+                                            fontWeight: FontWeight.w800,
+                                            letterSpacing: 1.2,
+                                          ),
                                     ),
                                     const SizedBox(height: 8),
                                     Focus(
@@ -585,9 +659,10 @@ class _SettingsViewState extends State<SettingsView> {
                                             'dictation-playground',
                                           ),
                                           controller: _playground,
-                                          maxLines: 3,
+                                          minLines: 5,
+                                          maxLines: 8,
                                           decoration: const InputDecoration(
-                                            hintText: 'Your words appear here',
+                                            hintText: 'Your words arrive here.',
                                           ),
                                         ),
                                       ),
@@ -606,24 +681,49 @@ class _SettingsViewState extends State<SettingsView> {
                                               HudState.error =>
                                                 dictation.message.value,
                                             };
-                                        return Padding(
-                                          padding: const EdgeInsets.only(
-                                            top: 8,
+                                        final active =
+                                            dictation.recording.value ||
+                                            dictation.hud.value ==
+                                                HudState.preparing ||
+                                            dictation.hud.value ==
+                                                HudState.writing ||
+                                            dictation.hud.value ==
+                                                HudState.error ||
+                                            dictation.hud.value ==
+                                                HudState.success;
+                                        return Container(
+                                          width: double.infinity,
+                                          margin: const EdgeInsets.only(
+                                            top: 12,
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 10,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: active
+                                                ? colors.primaryContainer
+                                                : colors.surfaceContainerLow,
+                                            border: Border(
+                                              left: BorderSide(
+                                                color: active
+                                                    ? colors.primary
+                                                    : colors.secondary,
+                                                width: 3,
+                                              ),
+                                            ),
                                           ),
                                           child: Semantics(
                                             liveRegion: true,
                                             child: Text(
-                                              dictation.recording.value ||
-                                                      dictation.hud.value ==
-                                                          HudState.preparing ||
-                                                      dictation.hud.value ==
-                                                          HudState.writing ||
-                                                      dictation.hud.value ==
-                                                          HudState.error ||
-                                                      dictation.hud.value ==
-                                                          HudState.success
+                                              active
                                                   ? status
-                                                  : 'Ready',
+                                                  : 'READY  •  Awaiting shortcut',
+                                              style: theme.textTheme.labelLarge
+                                                  ?.copyWith(
+                                                    fontWeight: FontWeight.w800,
+                                                    letterSpacing: .4,
+                                                  ),
                                             ),
                                           ),
                                         );
@@ -1101,41 +1201,37 @@ class _SettingsViewState extends State<SettingsView> {
                                     if (controller.history.isNotEmpty)
                                       TextButton.icon(
                                         onPressed: () async {
-                                          final confirmed =
-                                              await showDialog<bool>(
-                                                context: context,
-                                                builder: (context) =>
-                                                    AlertDialog(
-                                                      title: const Text(
-                                                        'Clear all history?',
+                                          final confirmed = await showDialog<bool>(
+                                            context: context,
+                                            builder: (context) => AlertDialog(
+                                              title: const Text(
+                                                'Clear all history?',
+                                              ),
+                                              content: const Text(
+                                                'All saved transcripts will be permanently deleted from this device.',
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(
+                                                        context,
+                                                        false,
                                                       ),
-                                                      content: const Text(
-                                                        'All saved transcripts will be permanently deleted from this device.',
+                                                  child: const Text('Cancel'),
+                                                ),
+                                                TextButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(
+                                                        context,
+                                                        true,
                                                       ),
-                                                      actions: [
-                                                        TextButton(
-                                                          onPressed: () =>
-                                                              Navigator.pop(
-                                                                context,
-                                                                false,
-                                                              ),
-                                                          child: const Text(
-                                                            'Cancel',
-                                                          ),
-                                                        ),
-                                                        TextButton(
-                                                          onPressed: () =>
-                                                              Navigator.pop(
-                                                                context,
-                                                                true,
-                                                              ),
-                                                          child: const Text(
-                                                            'Clear history',
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                              );
+                                                  child: const Text(
+                                                    'Clear history',
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
                                           if (confirmed == true) {
                                             await controller.clearHistory();
                                           }
@@ -1176,24 +1272,26 @@ class _SettingsViewState extends State<SettingsView> {
                                                 ),
                                               );
                                               if (!context.mounted) return;
-                                              ScaffoldMessenger.of(context)
-                                                  .showSnackBar(
-                                                    const SnackBar(
-                                                      content: Text(
-                                                        'Copied to clipboard.',
-                                                      ),
-                                                    ),
-                                                  );
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                    'Copied to clipboard.',
+                                                  ),
+                                                ),
+                                              );
                                             } catch (_) {
                                               if (!context.mounted) return;
-                                              ScaffoldMessenger.of(context)
-                                                  .showSnackBar(
-                                                    const SnackBar(
-                                                      content: Text(
-                                                        'Could not copy to clipboard.',
-                                                      ),
-                                                    ),
-                                                  );
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                    'Could not copy to clipboard.',
+                                                  ),
+                                                ),
+                                              );
                                             }
                                           },
                                         ),
@@ -1269,11 +1367,7 @@ class _SettingsViewState extends State<SettingsView> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.insights_rounded,
-                size: 48,
-                color: colors.primary,
-              ),
+              Icon(Icons.insights_rounded, size: 48, color: colors.primary),
               const SizedBox(height: 16),
               Text(
                 'No dictation stats yet',
@@ -1506,10 +1600,12 @@ class _SettingsViewState extends State<SettingsView> {
     required DayStat day,
     required int maxWords,
   }) {
-    final heightRatio =
-        maxWords > 0 ? (day.words / maxWords).clamp(0.0, 1.0) : 0.0;
+    final heightRatio = maxWords > 0
+        ? (day.words / maxWords).clamp(0.0, 1.0)
+        : 0.0;
     final now = DateTime.now();
-    final isToday = day.date.year == now.year &&
+    final isToday =
+        day.date.year == now.year &&
         day.date.month == now.month &&
         day.date.day == now.day;
 

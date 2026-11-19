@@ -1,4 +1,4 @@
-import 'dart:ui';
+import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 
@@ -43,45 +43,46 @@ class FloatingHudOverlay extends StatelessWidget {
     final minutes = durationSeconds ~/ 60;
     final seconds = (durationSeconds % 60).toString().padLeft(2, '0');
     return Material(
-      color: Colors.transparent,
+      color: const Color(0xFF171513),
       child: Center(
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(28),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: const Color(0xe6181825),
-                borderRadius: BorderRadius.circular(28),
-                border: Border.all(color: color),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(icon, color: color, size: 18),
-                  const SizedBox(width: 10),
-                  Flexible(
-                    child: Text(
-                      title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: state == HudState.error ? 3 : 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  if (state == HudState.listening) ...[
-                    const SizedBox(width: 10),
-                    Text(
-                      '$minutes:$seconds',
-                      style: const TextStyle(color: Colors.white70),
-                    ),
-                  ],
-                ],
-              ),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 520),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          decoration: BoxDecoration(
+            border: Border(
+              left: BorderSide(color: color, width: 4),
+              top: const BorderSide(color: Color(0xFF4A443C)),
+              right: const BorderSide(color: Color(0xFF4A443C)),
+              bottom: const BorderSide(color: Color(0xFF4A443C)),
             ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 19),
+              const SizedBox(width: 12),
+              Flexible(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: Color(0xFFFFFBF4),
+                    fontWeight: FontWeight.w700,
+                  ),
+                  maxLines: state == HudState.error ? 3 : 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (state == HudState.listening) ...[
+                const SizedBox(width: 16),
+                Text(
+                  '$minutes:$seconds',
+                  style: const TextStyle(
+                    color: Color(0xFFD9CFC0),
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       ),
