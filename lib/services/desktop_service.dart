@@ -13,6 +13,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/legacy.dart';
 import 'package:velora_desktop/velora_desktop.dart';
 
+String normalizeWindowsLineEndings(String text) => text
+    .replaceAll('\r\n', '\n')
+    .replaceAll('\r', '\n')
+    .replaceAll('\n', '\r\n');
+
 @visibleForTesting
 bool isTrayActivation(nativeapi.TrayIconEvent event) =>
     event is nativeapi.TrayIconClickedEvent ||
@@ -363,7 +368,7 @@ class DesktopService {
   }
 
   Future<void> copyTranscript(String text) =>
-      Clipboard.setData(ClipboardData(text: text));
+      Clipboard.setData(ClipboardData(text: normalizeWindowsLineEndings(text)));
 
   Future<void> typeText(String text, int target) async {
     if (text.isEmpty) throw StateError('No text to type.');
@@ -455,7 +460,7 @@ class DesktopService {
         'The target window changed. The transcript is on the clipboard.',
       );
     }
-    await Clipboard.setData(ClipboardData(text: text));
+    await copyTranscript(text);
     if (captureTarget() != target) {
       throw StateError(
         'The target window changed. The transcript is on the clipboard.',

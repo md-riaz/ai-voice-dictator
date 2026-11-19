@@ -17,6 +17,16 @@ void main() {
   });
   tearDown(() => dir.delete(recursive: true));
 
+  test('default prompts include multiline examples in every language mode', () {
+    for (final mode in DictationLanguageMode.values) {
+      final prompt = LanguagePromptBuilder.buildSystemPrompt(mode: mode);
+      expect(prompt, contains('নতুন লাইন'));
+      expect(prompt, contains('নতুন প্যারা'));
+      expect(prompt, contains('1. Check the logs\n2. Restart the server'));
+      expect(prompt, contains('Hi team,\n\nThe migration failed.'));
+    }
+  });
+
   test('custom system prompt is sent with translation directive', () async {
     final client = MockClient((request) async {
       final payload = jsonDecode(request.body);
@@ -125,7 +135,10 @@ void main() {
         expect(prompt, contains('Keep ordinary Bengali words in Bengali'));
         expect(prompt, contains('Flutter, login, CPU, QR code, PHP-FPM'));
         expect(prompt, contains('preserve every digit and leading zero'));
-        expect(prompt, contains('Format clearly spoken lists as numbered'));
+        expect(
+          prompt,
+          contains('Format clearly spoken enumerations as numbered'),
+        );
         return http.Response(
           jsonEncode({
             'candidates': [

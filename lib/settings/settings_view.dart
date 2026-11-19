@@ -5,6 +5,7 @@ import 'package:velora_ui/velora_ui.dart';
 import 'package:velora/velora.dart' as vx;
 
 import '../dictation_controller.dart';
+import '../services/desktop_service.dart' show normalizeWindowsLineEndings;
 import '../ui/floating_hud.dart';
 import 'settings_controller.dart';
 import 'settings_store.dart';
@@ -479,15 +480,15 @@ class _SettingsViewState extends State<SettingsView> {
                                 elevated: false,
                                 color: colors.surfaceContainerLowest,
                                 padding: const EdgeInsets.all(24),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                child: ExpansionTile(
+                                  tilePadding: EdgeInsets.zero,
+                                  leading: const Icon(Icons.tune_rounded),
+                                  title: const Text('Dictation prompt'),
+                                  subtitle: const Text(
+                                    'View or customize how Gemini formats your speech.',
+                                  ),
                                   children: [
-                                    _heading(
-                                      context,
-                                      Icons.tune_rounded,
-                                      'Dictation prompt',
-                                      'Customize how Gemini formats your speech. Language mode still applies.',
-                                    ),
+                                    const Text('Language mode still applies.'),
                                     const SizedBox(height: 16),
                                     TextField(
                                       controller: controller.systemPrompt,
@@ -1103,7 +1104,12 @@ class _SettingsViewState extends State<SettingsView> {
                                           onPressed: () async {
                                             try {
                                               await Clipboard.setData(
-                                                ClipboardData(text: entry.text),
+                                                ClipboardData(
+                                                  text:
+                                                      normalizeWindowsLineEndings(
+                                                        entry.text,
+                                                      ),
+                                                ),
                                               );
                                               if (!context.mounted) return;
                                               ScaffoldMessenger.of(context)

@@ -56,6 +56,14 @@ class FlowDesktop implements DesktopService {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test('normalizes mixed Windows clipboard line endings idempotently', () {
+    const expected = 'one\r\ntwo\r\nthree\r\n\r\nfour';
+    expect(
+      normalizeWindowsLineEndings('one\ntwo\r\nthree\r\n\nfour'),
+      expected,
+    );
+    expect(normalizeWindowsLineEndings(expected), expected);
+  });
   late Directory dir;
   late File file;
   late SettingsStore settings;
