@@ -145,9 +145,15 @@ void main() {
         service: FakeSettingsService(),
         onShortcutChanged: (_, _) async {},
       );
-      controller.chooseModel('gemini-3.1-flash-lite');
+      controller.chooseModel('gemini-3.5-flash-lite');
       await controller.saveModel();
-      expect(store.savedModel, 'gemini-3.1-flash-lite');
+      expect(store.savedModel, 'gemini-3.5-flash-lite');
+      await controller.load();
+      expect(controller.modelChoice, 'gemini-3.5-flash-lite');
+      controller.chooseModel('gemini-3-flash-preview');
+      await controller.saveModel();
+      await controller.load();
+      expect(controller.modelChoice, 'gemini-3-flash-preview');
       controller.chooseModel('custom');
       controller.modelInput.text = 'gemini-future-preview';
       await controller.saveModel();

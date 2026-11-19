@@ -39,7 +39,8 @@ class SettingsController extends VeloraController {
   String modelChoice = SettingsStore.defaultModel;
   static const knownModels = [
     SettingsStore.defaultModel,
-    'gemini-3.1-flash-lite',
+    'gemini-3-flash-preview',
+    'gemini-3.5-flash-lite',
   ];
   StreamSubscription<Uint8List>? samples;
   StreamSubscription<Amplitude>? amplitude;

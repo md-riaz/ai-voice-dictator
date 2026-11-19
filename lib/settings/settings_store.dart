@@ -20,7 +20,7 @@ class HistoryEntry {
 }
 
 class SettingsStore {
-  static const defaultModel = 'gemini-3.5-flash-lite';
+  static const defaultModel = 'gemini-3.1-flash-lite';
   static bool validModel(String value) =>
       RegExp(r'^[a-z0-9][a-z0-9.-]{0,99}$').hasMatch(value);
   SettingsStore({FlutterSecureStorage? secureStorage})

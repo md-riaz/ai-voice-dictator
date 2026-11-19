@@ -364,15 +364,21 @@ class _SettingsViewState extends State<SettingsView> {
                                         isExpanded: true,
                                         items: const [
                                           DropdownMenuItem(
-                                            value: 'gemini-3.5-flash-lite',
-                                            child: Text(
-                                              'Gemini 3.5 Flash-Lite',
-                                            ),
-                                          ),
-                                          DropdownMenuItem(
                                             value: 'gemini-3.1-flash-lite',
                                             child: Text(
                                               'Gemini 3.1 Flash-Lite',
+                                            ),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 'gemini-3-flash-preview',
+                                            child: Text(
+                                              'Gemini 3 Flash Preview',
+                                            ),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 'gemini-3.5-flash-lite',
+                                            child: Text(
+                                              'Gemini 3.5 Flash-Lite',
                                             ),
                                           ),
                                           DropdownMenuItem(

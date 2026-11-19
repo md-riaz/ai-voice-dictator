@@ -29,7 +29,7 @@ void main() {
       );
       expect(
         request.url.path,
-        '/v1beta/models/${count == 0 ? 'gemini-3.5-flash-lite' : 'gemini-3.1-flash-lite'}:generateContent',
+        '/v1beta/models/${count == 0 ? 'gemini-3.1-flash-lite' : 'gemini-3.5-flash-lite'}:generateContent',
       );
       expect(
         payload['system_instruction']['parts'][0]['text'],
@@ -110,6 +110,33 @@ void main() {
       expect(calls, 1);
     },
   );
+  test('preview uses minimal thinking without automatic fallback', () async {
+    var calls = 0;
+    final client = MockClient((request) async {
+      calls++;
+      expect(
+        request.url.path,
+        '/v1beta/models/gemini-3-flash-preview:generateContent',
+      );
+      expect(
+        jsonDecode(
+          request.body,
+        )['generationConfig']['thinkingConfig']['thinkingLevel'],
+        'minimal',
+      );
+      return http.Response('', 404);
+    });
+    final service = GeminiDictationService(
+      'secret',
+      model: 'gemini-3-flash-preview',
+      client: client,
+    );
+    await expectLater(
+      service.transcribe(audio, 3),
+      throwsA(isA<DictationException>()),
+    );
+    expect(calls, 1);
+  });
   test('rejects a malformed model before making a request', () async {
     final client = MockClient((_) async => fail('must not call network'));
     final service = GeminiDictationService(
@@ -134,13 +161,13 @@ void main() {
       calls++;
       expect(
         request.url.path,
-        '/v1beta/models/gemini-3.1-flash-lite:generateContent',
+        '/v1beta/models/gemini-3.5-flash-lite:generateContent',
       );
       return http.Response('', 404);
     });
     final service = GeminiDictationService(
       'secret',
-      model: 'gemini-3.1-flash-lite',
+      model: 'gemini-3.5-flash-lite',
       client: client,
     );
     await expectLater(
