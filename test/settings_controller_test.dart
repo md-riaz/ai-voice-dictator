@@ -324,6 +324,25 @@ void main() {
     expect(find.text('Try dictation'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('history and setup have no extra close button', (tester) async {
+    final controller = SettingsController(
+      store: FakeSettings(),
+      service: FakeSettingsService(),
+      onShortcutChanged: (_, _) async {},
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ui.VeloraTheme.light(),
+        home: SettingsView(controller: controller),
+      ),
+    );
+    await tester.pumpAndSettle();
+    for (final page in ['History', 'Setup']) {
+      await tester.tap(find.text(page));
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.close_rounded), findsNothing);
+    }
+  });
   testWidgets('keyboard can focus the API key and save it', (tester) async {
     final store = FakeSettings();
     final controller = SettingsController(

@@ -8,14 +8,8 @@ import '../ui/floating_hud.dart';
 import 'settings_controller.dart';
 
 class SettingsView extends StatefulWidget {
-  const SettingsView({
-    super.key,
-    required this.controller,
-    this.onClose,
-    this.dictation,
-  });
+  const SettingsView({super.key, required this.controller, this.dictation});
   final SettingsController controller;
-  final VoidCallback? onClose;
   final DictationController? dictation;
   @override
   State<SettingsView> createState() => _SettingsViewState();
@@ -231,12 +225,6 @@ class _SettingsViewState extends State<SettingsView> {
                                     ],
                                   ),
                                 ),
-                                if (widget.onClose != null)
-                                  IconButton(
-                                    onPressed: widget.onClose,
-                                    tooltip: 'Close to system tray',
-                                    icon: const Icon(Icons.close_rounded),
-                                  ),
                               ],
                             ),
                             const SizedBox(height: 24),

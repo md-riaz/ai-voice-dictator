@@ -106,7 +106,6 @@ class DictatorApp extends StatelessWidget {
         () => controller.settingsVisible.value
             ? SettingsView(
                 controller: module.settingsController(),
-                onClose: controller.desktop.onWindowClose,
                 dictation: controller,
               )
             : FloatingHudOverlay(

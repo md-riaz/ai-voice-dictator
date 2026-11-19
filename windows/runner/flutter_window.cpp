@@ -1,6 +1,7 @@
 #include "flutter_window.h"
 
 #include <optional>
+#include <cmath>
 #include <flutter/method_channel.h>
 #include <flutter/standard_method_codec.h>
 
@@ -14,9 +15,11 @@ HWND hud_window = nullptr;
 std::wstring hud_text = L"Please wait before speaking...";
 COLORREF hud_color = RGB(255, 104, 104);
 bool hud_success = false;
+bool hud_writing = false;
 bool ctrl = false, win = false, alt = false, space = false;
 bool hold_started = false, chord_used = false, recording = false;
 constexpr UINT_PTR kHoldTimer = 102;
+constexpr UINT_PTR kHudTimer = 103;
 
 constexpr bool HasVisibleTitleBar(const RECT& window, const RECT& work) {
   const LONG left = window.left > work.left ? window.left : work.left;
@@ -56,6 +59,10 @@ std::wstring Wide(const std::string& text) {
 }
 
 LRESULT CALLBACK HudProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
+  if (message == WM_TIMER && wparam == kHudTimer) {
+    InvalidateRect(hwnd, nullptr, FALSE);
+    return 0;
+  }
   if (message == WM_PAINT) {
     PAINTSTRUCT paint;
     HDC dc = BeginPaint(hwnd, &paint);
@@ -65,8 +72,19 @@ LRESULT CALLBACK HudProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) 
     HBRUSH dot = CreateSolidBrush(hud_color);
     HGDIOBJ oldBrush = SelectObject(dc, dot);
     HGDIOBJ oldPen = SelectObject(dc, GetStockObject(NULL_PEN));
-    if (!hud_success) Ellipse(dc, 18, 25, 32, 39);
+    if (!hud_success && !hud_writing) Ellipse(dc, 18, 25, 32, 39);
     SelectObject(dc, oldBrush); SelectObject(dc, oldPen); DeleteObject(dot);
+    if (hud_writing) {
+      const double angle = (GetTickCount64() % 960) * 6.283185307179586 / 960;
+      HPEN pen = CreatePen(PS_SOLID, 2, RGB(245, 245, 250));
+      HGDIOBJ previous = SelectObject(dc, pen);
+      Arc(dc, 18, 25, 33, 40,
+          25 + static_cast<int>(7 * std::cos(angle)),
+          32 + static_cast<int>(7 * std::sin(angle)),
+          25 + static_cast<int>(7 * std::cos(angle + 1.5)),
+          32 + static_cast<int>(7 * std::sin(angle + 1.5)));
+      SelectObject(dc, previous); DeleteObject(pen);
+    }
     if (hud_success) {
       HPEN pen = CreatePen(PS_SOLID, 3, hud_color);
       HGDIOBJ previous = SelectObject(dc, pen);
@@ -109,6 +127,16 @@ void ShowHud() {
   SetWindowPos(hud_window, HWND_TOPMOST, work.left + (work.right - work.left - 340) / 2,
                work.bottom - 96, 340, 64, SWP_NOACTIVATE | SWP_SHOWWINDOW);
   InvalidateRect(hud_window, nullptr, TRUE);
+}
+
+void UpdateHudAnimation() {
+  if (!hud_window) return;
+  KillTimer(hud_window, kHudTimer);
+  BOOL animations_enabled = TRUE;
+  SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, &animations_enabled, 0);
+  if (hud_writing && IsWindowVisible(hud_window) && animations_enabled) {
+    SetTimer(hud_window, kHudTimer, 60, nullptr);
+  }
 }
 
 void Emit(const char* event) {
@@ -209,9 +237,9 @@ bool FlutterWindow::OnCreate() {
     } else if (call.method_name() == "ensureWindowVisible") {
       EnsureWindowVisible(); result->Success();
     } else if (call.method_name() == "showHud") {
-      ShowHud(); result->Success();
+      ShowHud(); UpdateHudAnimation(); result->Success();
     } else if (call.method_name() == "hideHud") {
-      if (hud_window) ShowWindow(hud_window, SW_HIDE);
+      if (hud_window) { KillTimer(hud_window, kHudTimer); ShowWindow(hud_window, SW_HIDE); }
       result->Success();
     } else if (call.method_name() == "updateHud") {
       const auto* args = std::get_if<flutter::EncodableMap>(call.arguments());
@@ -223,6 +251,7 @@ bool FlutterWindow::OnCreate() {
         const std::string* m = message == args->end() ? nullptr : std::get_if<std::string>(&message->second);
         const int32_t* n = seconds == args->end() ? nullptr : std::get_if<int32_t>(&seconds->second);
         hud_success = s && *s == "success";
+        hud_writing = s && *s == "writing";
         if (s && *s == "preparing") {
           hud_text = L"Please wait before speaking..."; hud_color = RGB(255, 194, 90);
         } else if (s && *s == "listening") {
@@ -231,6 +260,7 @@ bool FlutterWindow::OnCreate() {
         } else if (s && *s == "writing") { hud_text = L"Turning speech into text..."; hud_color = RGB(101, 210, 238); }
         else if (s && *s == "success") { hud_text = L"Done"; hud_color = RGB(105, 220, 150); }
         else if (s && *s == "error") { hud_text = m && !m->empty() ? Wide(*m) : L"Error occurred"; hud_color = RGB(255, 194, 90); }
+        UpdateHudAnimation();
         if (hud_window) InvalidateRect(hud_window, nullptr, TRUE);
       }
       result->Success();
@@ -250,7 +280,7 @@ void FlutterWindow::OnDestroy() {
   KillTimer(key_window, kHoldTimer);
   if (hook) UnhookWindowsHookEx(hook);
   hook = nullptr;
-  if (hud_window) DestroyWindow(hud_window);
+  if (hud_window) { KillTimer(hud_window, kHudTimer); DestroyWindow(hud_window); }
   hud_window = nullptr;
   keys.reset();
   if (flutter_controller_) {

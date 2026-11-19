@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hotkey_manager/hotkey_manager.dart';
 import 'package:nativeapi/nativeapi.dart' as nativeapi;
+import 'package:nativeapi_flutter/nativeapi_flutter.dart' show ImageAsset;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/legacy.dart';
 import 'package:velora_desktop/velora_desktop.dart';
@@ -21,7 +22,11 @@ bool isTrayActivation(nativeapi.TrayIconEvent event) =>
 class _TrayPort implements VeloraDesktopTrayPort {
   _TrayPort(this.owner);
   final DesktopService owner;
-  final _tray = TrayManagerAdapter();
+  nativeapi.TrayIcon? _icon;
+  nativeapi.Menu? _menu;
+  nativeapi.ListenerId? _listener;
+  final _items = <nativeapi.MenuItem>[];
+  final _itemListeners = <nativeapi.ListenerId?>[];
 
   @override
   Future<bool> setup({
@@ -30,17 +35,28 @@ class _TrayPort implements VeloraDesktopTrayPort {
     required void Function() onShow,
     required void Function() onQuit,
   }) async {
-    final ready = await _tray.setup(
-      config: config,
-      onActivate: owner.onSettings,
-      onShow: owner.onSettings,
-      onQuit: owner.onExit,
-    );
-    if (ready) await updatePaused(false);
-    return ready;
+    _icon = nativeapi.TrayIcon.create();
+    if (_icon == null) return false;
+    try {
+      await setIcon(config.iconAsset);
+      await setTooltip(config.tooltip ?? 'AI Voice Dictator');
+      _icon!.setContextMenuTrigger(nativeapi.ContextMenuTrigger.rightClicked);
+      _listener = _icon!.addListener((event) {
+        if (isTrayActivation(event)) owner.onSettings();
+      });
+      await updatePaused(false);
+      if (!_icon!.setVisible(true)) {
+        await dispose();
+        return false;
+      }
+      return true;
+    } catch (_) {
+      await dispose();
+      rethrow;
+    }
   }
 
-  Future<void> updatePaused(bool paused) => _tray.setMenuItems(
+  Future<void> updatePaused(bool paused) => setMenuItems(
     showLabel: 'Settings',
     quitLabel: 'Exit',
     items: [
@@ -62,13 +78,25 @@ class _TrayPort implements VeloraDesktopTrayPort {
   );
 
   @override
-  Future<void> dispose() => _tray.dispose();
+  Future<void> dispose() async {
+    final icon = _icon;
+    if (icon != null) {
+      if (_listener != null) icon.removeListener(_listener!);
+      icon.setContextMenu(null);
+      icon.dispose();
+    }
+    _icon = null;
+    _listener = null;
+    _disposeMenu();
+  }
 
   @override
-  Future<void> setIcon(String assetPath) => _tray.setIcon(assetPath);
+  Future<void> setIcon(String assetPath) async {
+    _icon?.icon = ImageAsset.fromAsset(assetPath);
+  }
 
   @override
-  Future<void> setTooltip(String? tooltip) => _tray.setTooltip(tooltip);
+  Future<void> setTooltip(String? tooltip) async => _icon?.setTooltip(tooltip);
 
   @override
   Future<void> setMenuItems({
@@ -77,13 +105,85 @@ class _TrayPort implements VeloraDesktopTrayPort {
     required List<VeloraTrayMenuItem> items,
     required void Function() onShow,
     required void Function() onQuit,
-  }) => _tray.setMenuItems(
-    showLabel: showLabel,
-    quitLabel: quitLabel,
-    items: items,
-    onShow: owner.onSettings,
-    onQuit: owner.onExit,
-  );
+  }) async {
+    final icon = _icon;
+    if (icon == null) return;
+    final menu = nativeapi.Menu.create();
+    if (menu == null) throw StateError('Could not create tray menu.');
+    final newItems = <nativeapi.MenuItem>[];
+    final listeners = <nativeapi.ListenerId?>[];
+    try {
+      void add(
+        String label,
+        VoidCallback? callback, {
+        bool enabled = true,
+        bool? checked,
+      }) {
+        final item = nativeapi.MenuItem.createWithLabelAndType(
+          label,
+          checked == null
+              ? nativeapi.MenuItemType.normal
+              : nativeapi.MenuItemType.checkbox,
+        );
+        if (item == null) throw StateError('Could not create tray menu item.');
+        newItems.add(item);
+        item.isEnabled = enabled;
+        if (checked != null) {
+          item.state = checked
+              ? nativeapi.MenuItemState.checked
+              : nativeapi.MenuItemState.unchecked;
+        }
+        listeners.add(
+          callback == null
+              ? null
+              : item.addListener((event) {
+                  if (event is nativeapi.MenuItemClickedEvent) callback();
+                }),
+        );
+        menu.addItem(item);
+      }
+
+      add(showLabel, owner.onSettings);
+      for (final item in items) {
+        add(
+          item.label,
+          item.onTap,
+          enabled: item.enabled,
+          checked: item.checked,
+        );
+      }
+      add(quitLabel, owner.onExit);
+      icon.setContextMenu(menu);
+      _disposeMenu();
+      _menu = menu;
+      _items.addAll(newItems);
+      _itemListeners.addAll(listeners);
+    } catch (_) {
+      for (var i = 0; i < newItems.length; i++) {
+        if (i < listeners.length && listeners[i] != null) {
+          newItems[i].removeListener(listeners[i]!);
+        }
+        newItems[i].dispose();
+      }
+      menu.dispose();
+      rethrow;
+    }
+  }
+
+  void _disposeMenu() {
+    for (var i = 0; i < _items.length; i++) {
+      if (_itemListeners[i] != null) {
+        _items[i].removeListener(_itemListeners[i]!);
+      }
+    }
+    _menu?.dispose();
+    for (final item in _items) {
+      item.dispose();
+    }
+    _menu = null;
+    _items.clear();
+    _itemListeners.clear();
+  }
 }
 
 final class _MouseInput extends Struct {
@@ -360,12 +460,6 @@ class DesktopService {
     await _keyChannel.invokeMethod<void>('ensureWindowVisible');
     await windowManager.show();
     await windowManager.focus();
-  }
-
-  void onWindowClose() {
-    onSettingsClosed();
-    unawaited(_saveBounds());
-    _desktop.hide();
   }
 
   Future<void> dispose() async {
