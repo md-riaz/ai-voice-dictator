@@ -111,6 +111,8 @@ class SettingsStore {
     });
   }
 
+  Future<void> clearHistory() async => _database.delete('history');
+
   Future<List<HistoryEntry>> history() async {
     final rows = await _database.query(
       'history',

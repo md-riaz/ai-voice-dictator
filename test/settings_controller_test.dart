@@ -14,6 +14,8 @@ import 'package:ai_voice_dictator/services/desktop_service.dart';
 import 'package:ai_voice_dictator/services/dictation_service.dart';
 
 class FakeSettings implements SettingsStore {
+  bool historyCleared = false;
+  bool failClearHistory = false;
   String savedModel = SettingsStore.defaultModel;
   @override
   String model() => savedModel;
@@ -42,13 +44,21 @@ class FakeSettings implements SettingsStore {
   @override
   String? deviceId() => 'device';
   @override
-  Future<List<HistoryEntry>> history() async => [
-    HistoryEntry(
-      text: 'Hello',
-      createdAt: DateTime(2026),
-      duration: const Duration(seconds: 1),
-    ),
-  ];
+  Future<void> clearHistory() async {
+    if (failClearHistory) throw StateError('delete failed');
+    historyCleared = true;
+  }
+
+  @override
+  Future<List<HistoryEntry>> history() async => historyCleared
+      ? []
+      : [
+          HistoryEntry(
+            text: 'Hello',
+            createdAt: DateTime(2026),
+            duration: const Duration(seconds: 1),
+          ),
+        ];
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -409,6 +419,49 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Recent dictations'), findsOneWidget);
     expect(find.text('Hello'), findsOneWidget);
+  });
+  testWidgets('clear history requires confirmation', (tester) async {
+    final store = FakeSettings();
+    final controller = SettingsController(
+      store: store,
+      service: FakeSettingsService(),
+      onShortcutChanged: (_, _) async {},
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ui.VeloraTheme.light(),
+        home: SettingsView(controller: controller),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('History'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Clear history'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(store.historyCleared, false);
+    expect(find.text('Hello'), findsOneWidget);
+    await tester.tap(find.text('Clear history'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Clear history').last);
+    await tester.pumpAndSettle();
+    expect(store.historyCleared, true);
+    expect(find.text('No dictations yet.'), findsOneWidget);
+  });
+  test('failed history deletion retains entries and reports error', () async {
+    final store = FakeSettings()..failClearHistory = true;
+    final controller = SettingsController(
+      store: store,
+      service: FakeSettingsService(),
+      onShortcutChanged: (_, _) async {},
+    );
+    await controller.load();
+    await controller.clearHistory();
+    expect(controller.history.single.text, 'Hello');
+    expect(controller.pageError, 'Could not clear dictation history.');
+    await controller.closeResources();
+    controller.onClose();
   });
   test(
     'loads persisted settings, devices and history into controller state',

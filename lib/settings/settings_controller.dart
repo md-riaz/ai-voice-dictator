@@ -134,6 +134,15 @@ class SettingsController extends VeloraController {
     }
   }
 
+  Future<void> clearHistory() async {
+    try {
+      await store.clearHistory();
+      await refreshHistory();
+    } catch (_) {
+      _updateState(() => pageError = 'Could not clear dictation history.');
+    }
+  }
+
   Future<void> saveKey() async {
     try {
       final savedKey = key.text.trim();

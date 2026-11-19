@@ -43,6 +43,10 @@ void main() {
       expect(rows.first.duration, const Duration(seconds: 51));
       expect(rows.last.text, 'entry 2');
       expect(rows.first.wordCount, 2);
+      await store.clearHistory();
+      expect(await store.history(), isEmpty);
+      await store.addHistory('after clearing', const Duration(seconds: 1));
+      expect((await store.history()).single.text, 'after clearing');
       await store.close();
     },
   );

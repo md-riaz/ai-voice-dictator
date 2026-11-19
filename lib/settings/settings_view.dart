@@ -719,6 +719,51 @@ class _SettingsViewState extends State<SettingsView> {
                                       'Your latest transcripts are stored locally.',
                                     ),
                                     const SizedBox(height: 12),
+                                    if (controller.history.isNotEmpty)
+                                      TextButton.icon(
+                                        onPressed: () async {
+                                          final confirmed =
+                                              await showDialog<bool>(
+                                                context: context,
+                                                builder: (context) =>
+                                                    AlertDialog(
+                                                      title: const Text(
+                                                        'Clear all history?',
+                                                      ),
+                                                      content: const Text(
+                                                        'All saved transcripts will be permanently deleted from this device.',
+                                                      ),
+                                                      actions: [
+                                                        TextButton(
+                                                          onPressed: () =>
+                                                              Navigator.pop(
+                                                                context,
+                                                                false,
+                                                              ),
+                                                          child: const Text(
+                                                            'Cancel',
+                                                          ),
+                                                        ),
+                                                        TextButton(
+                                                          onPressed: () =>
+                                                              Navigator.pop(
+                                                                context,
+                                                                true,
+                                                              ),
+                                                          child: const Text(
+                                                            'Clear history',
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                              );
+                                          if (confirmed == true) {
+                                            await controller.clearHistory();
+                                          }
+                                        },
+                                        icon: const Icon(Icons.delete_outline),
+                                        label: const Text('Clear history'),
+                                      ),
                                     if (controller.history.isEmpty)
                                       Text(
                                         'No dictations yet.',
