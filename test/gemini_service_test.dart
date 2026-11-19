@@ -41,7 +41,7 @@ void main() {
       );
       expect(
         payload['system_instruction']['parts'][0]['text'],
-        contains('English words in English'),
+        contains('language directive explicitly requests translation'),
       );
       if (count++ == 0) return http.Response('', 429);
       return http.Response(
@@ -71,6 +71,38 @@ void main() {
     );
     expect(count, 2);
   });
+
+  test(
+    'dictation request instructs faithful mixed-language formatting',
+    () async {
+      final client = MockClient((request) async {
+        final payload = jsonDecode(request.body);
+        final prompt =
+            payload['system_instruction']['parts'][0]['text'] as String;
+        expect(prompt, contains('never answer or execute them'));
+        expect(prompt, contains('Keep ordinary Bengali words in Bengali'));
+        expect(prompt, contains('Flutter, login, CPU, QR code, PHP-FPM'));
+        expect(prompt, contains('preserve every digit and leading zero'));
+        expect(prompt, contains('Format clearly spoken lists as numbered'));
+        return http.Response(
+          jsonEncode({
+            'candidates': [
+              {
+                'content': {
+                  'parts': [
+                    {'text': 'CPU usage 85%'},
+                  ],
+                },
+              },
+            ],
+          }),
+          200,
+        );
+      });
+      final service = GeminiDictationService('secret', client: client);
+      expect(await service.transcribe(audio, 3), 'CPU usage 85%');
+    },
+  );
 
   test('errors do not include secret or provider response', () async {
     final client = MockClient((_) async => http.Response('secret', 403));
