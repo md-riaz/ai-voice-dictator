@@ -546,8 +546,16 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Setup'));
     await tester.pumpAndSettle();
-    expect(find.text('Live HUD streaming preview'), findsOneWidget);
-    await tester.tap(find.text('Live HUD streaming preview'));
+    final toggle = find.text('Live HUD streaming preview');
+    await tester.scrollUntilVisible(
+      toggle,
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.ensureVisible(toggle);
+    await tester.pumpAndSettle();
+    expect(toggle, findsOneWidget);
+    await tester.tap(toggle);
     await tester.pumpAndSettle();
     expect(store.savedStreamPreview, true);
   });
