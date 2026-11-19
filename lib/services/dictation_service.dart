@@ -51,15 +51,15 @@ class DictationService {
   ).transcribe(file, duration, mode: mode, targetLanguage: target);
 
   Future<void> start({bool translate = false}) async {
+    _target = desktop.captureTarget();
+    if (_target == 0) throw StateError('No active window found.');
+    _playgroundTarget = playgroundActive?.call() ?? false;
     if ((await settings.apiKey()).isEmpty) {
       throw const DictationException(
         'key_missing',
         'Please set your Gemini API key in Settings.',
       );
     }
-    _target = desktop.captureTarget();
-    if (_target == 0) throw StateError('No active window found.');
-    _playgroundTarget = playgroundActive?.call() ?? false;
     _translate = translate;
     await audio.start(deviceId: settings.deviceId());
   }

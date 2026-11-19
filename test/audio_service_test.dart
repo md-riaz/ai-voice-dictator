@@ -140,15 +140,37 @@ void main() {
       padded.setRange(0, 44, original);
       padded.setRange(44 + 32000, 44 + 64000, original, 44);
       final data = ByteData.sublistView(padded);
+      data.setInt16(44 + 10 * 2, 1000, Endian.little);
       data.setUint32(4, padded.length - 8, Endian.little);
       data.setUint32(40, padded.length - 44, Endian.little);
       final file = File('${dir.path}/test.wav');
       await file.writeAsBytes(padded);
       await normalizeRecordedWav(file);
       final output = await file.readAsBytes();
-      expect(output.length, lessThan(padded.length));
+      expect(output.length, lessThan(44 + 32000 * 2));
       final samples = ByteData.sublistView(output);
-      expect(samples.getInt16(44 + 11000 * 2, Endian.little), 400);
+      expect(
+        List.generate(
+          (output.length - 44) ~/ 2,
+          (i) => samples.getInt16(44 + i * 2, Endian.little),
+        ),
+        contains(400),
+      );
+    } finally {
+      await dir.delete(recursive: true);
+    }
+  });
+  test('rejects a silent recording with an isolated loud click', () async {
+    final dir = await Directory.systemTemp.createTemp('audio_test_');
+    try {
+      final bytes = wav(silent: true);
+      ByteData.sublistView(bytes).setInt16(44 + 8000 * 2, 10000, Endian.little);
+      final file = File('${dir.path}/click.wav');
+      await file.writeAsBytes(bytes);
+      await expectLater(
+        normalizeRecordedWav(file),
+        throwsA(isA<DictationException>()),
+      );
     } finally {
       await dir.delete(recursive: true);
     }

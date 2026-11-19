@@ -110,6 +110,8 @@ class PlaygroundDictation implements DictationService {
 
 class PlaygroundDesktop implements DesktopService {
   @override
+  bool isAppForeground() => true;
+  @override
   Future<void> updateHud(String state, String message, int seconds) async {}
   @override
   Future<void> showHud() async {}

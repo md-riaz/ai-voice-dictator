@@ -41,6 +41,8 @@ class TestDesktop extends DesktopService {
         onExit: () {},
       );
   @override
+  int captureTarget() => 123;
+  @override
   Future<void> showHud() async {}
   @override
   Future<void> hideHud() async {}

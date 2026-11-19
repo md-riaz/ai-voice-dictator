@@ -28,6 +28,9 @@ class FakeDictation implements DictationService {
 
 class FakeDesktop implements DesktopService {
   int hidden = 0;
+  bool foreground = true;
+  @override
+  bool isAppForeground() => foreground;
   @override
   Future<void> updateHud(String state, String message, int seconds) async {}
   @override
@@ -150,6 +153,22 @@ void main() {
     await controller.handleShortcut('holdStart');
     await controller.handleShortcut('cancel');
     expect(service.events, ['start', 'cancel']);
+  });
+  test('shortcuts work in another app while settings stays visible', () async {
+    final service = FakeDictation();
+    final desktop = FakeDesktop()..foreground = false;
+    final controller = DictationController(service, FakeSettings(), desktop);
+    controller.settingsVisible.value = true;
+    controller.playgroundFocused = true;
+    expect(controller.playgroundActive, false);
+    expect(controller.canPaste, true);
+    await controller.handleShortcut('holdStart');
+    await controller.handleShortcut('cancel');
+    expect(service.events, ['start', 'cancel']);
+    desktop.foreground = true;
+    expect(controller.playgroundActive, true);
+    controller.playgroundFocused = false;
+    expect(controller.canPaste, false);
   });
   test('hold starts and release finishes', () async {
     final service = FakeDictation();

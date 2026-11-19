@@ -123,7 +123,14 @@ bool CreateHud() {
 
 void ShowHud() {
   if (!hud_window && !CreateHud()) return;
-  RECT work; SystemParametersInfoW(SPI_GETWORKAREA, 0, &work, 0);
+  RECT work;
+  MONITORINFO monitor_info = {sizeof(monitor_info)};
+  HMONITOR monitor = MonitorFromWindow(GetForegroundWindow(), MONITOR_DEFAULTTOPRIMARY);
+  if (monitor && GetMonitorInfoW(monitor, &monitor_info)) {
+    work = monitor_info.rcWork;
+  } else {
+    SystemParametersInfoW(SPI_GETWORKAREA, 0, &work, 0);
+  }
   SetWindowPos(hud_window, HWND_TOPMOST, work.left + (work.right - work.left - 340) / 2,
                work.bottom - 96, 340, 64, SWP_NOACTIVATE | SWP_SHOWWINDOW);
   InvalidateRect(hud_window, nullptr, TRUE);

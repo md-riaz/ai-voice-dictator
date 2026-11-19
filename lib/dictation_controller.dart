@@ -34,14 +34,21 @@ class DictationController extends VeloraController {
   Timer? _timer;
   Timer? _hudTimer;
 
+  bool get playgroundActive =>
+      settingsVisible.value && desktop.isAppForeground() && playgroundFocused;
+
+  bool get canPaste =>
+      !settingsVisible.value || !desktop.isAppForeground() || playgroundFocused;
+
+  bool get _settingsBlocksShortcut =>
+      settingsVisible.value && desktop.isAppForeground() && !playgroundFocused;
+
   Future<void> handleShortcut(String event) async {
     if (_closing || _suspended) return;
     switch (event) {
       case 'holdStart':
       case 'translationStart':
-        if (_mode != null ||
-            paused ||
-            (settingsVisible.value && !playgroundFocused)) {
+        if (_mode != null || paused || _settingsBlocksShortcut) {
           return;
         }
         await toggle(translate: event == 'translationStart');
@@ -61,7 +68,7 @@ class DictationController extends VeloraController {
         } else if (_mode == 'handsFree') {
           _mode = null;
           await toggle();
-        } else if (!paused && (!settingsVisible.value || playgroundFocused)) {
+        } else if (!paused && !_settingsBlocksShortcut) {
           await toggle();
           if (_listening) _mode = 'handsFree';
         }
@@ -119,7 +126,7 @@ class DictationController extends VeloraController {
         _suspended ||
         (paused && !_listening) ||
         _busy ||
-        (settingsVisible.value && !playgroundFocused && !_listening)) {
+        (_settingsBlocksShortcut && !_listening)) {
       return;
     }
     _busy = true;

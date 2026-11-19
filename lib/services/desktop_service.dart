@@ -388,6 +388,21 @@ class DesktopService {
         'GetForegroundWindow',
       )();
 
+  bool isAppForeground() {
+    final target = captureTarget();
+    if (target == 0) return false;
+    final processId = calloc<Uint32>();
+    try {
+      _user32.lookupFunction<
+        Uint32 Function(IntPtr, Pointer<Uint32>),
+        int Function(int, Pointer<Uint32>)
+      >('GetWindowThreadProcessId')(target, processId);
+      return processId.value == pid;
+    } finally {
+      calloc.free(processId);
+    }
+  }
+
   Future<void> copyTranscript(String text) =>
       Clipboard.setData(ClipboardData(text: text));
 

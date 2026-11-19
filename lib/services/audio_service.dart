@@ -94,19 +94,29 @@ Future<void> normalizeRecordedWav(File file) async {
   var peak = 0;
   var first = samples;
   var last = -1;
-  for (var i = 0; i < samples; i++) {
-    for (var channel = 0; channel < channels; channel++) {
-      final value = data
-          .getInt16(sampleOffset + (i * channels + channel) * 2, Endian.little)
-          .abs();
-      peak = math.max(peak, value);
-      if (value >= 300) {
-        first = math.min(first, i);
-        last = i;
+  final frameSize = sampleRate ~/ 50;
+  var previousActive = false;
+  for (var start = 0; start < samples; start += frameSize) {
+    final end = math.min(samples, start + frameSize);
+    var energy = 0.0;
+    for (var i = start; i < end; i++) {
+      for (var channel = 0; channel < channels; channel++) {
+        final value = data.getInt16(
+          sampleOffset + (i * channels + channel) * 2,
+          Endian.little,
+        );
+        peak = math.max(peak, value.abs());
+        energy += value * value;
       }
     }
+    final active = energy / ((end - start) * channels) >= 8100;
+    if (active && previousActive) {
+      first = math.min(first, start - frameSize);
+      last = end - 1;
+    }
+    previousActive = active;
   }
-  if (peak < 300) {
+  if (last < 0) {
     throw const DictationException(
       'audio_silent',
       'No speech detected. Speak louder or check your microphone.',

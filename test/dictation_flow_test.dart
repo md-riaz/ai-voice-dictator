@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -47,6 +48,25 @@ class FlowDesktop implements DesktopService {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class DelayedKeySettings implements SettingsStore {
+  final key = Completer<String>();
+  @override
+  Future<String> apiKey() => key.future;
+  @override
+  String? deviceId() => null;
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class ObservedDesktop extends FlowDesktop {
+  bool captured = false;
+  @override
+  int captureTarget() {
+    captured = true;
+    return super.captureTarget();
+  }
 }
 
 void main() {
@@ -128,6 +148,29 @@ void main() {
     expect(desktop.copied, 'Hello world.');
     expect((await settings.history()).single.text, 'Hello world.');
     expect(await file.exists(), false);
+  });
+  test('captures the target before waiting for secure storage', () async {
+    final delayedSettings = DelayedKeySettings();
+    var playgroundFocused = true;
+    var capturedPlayground = false;
+    final audio = FlowAudio(file);
+    final desktop = ObservedDesktop();
+    final service = DictationService(
+      delayedSettings,
+      audio,
+      desktop,
+      playgroundActive: () {
+        capturedPlayground = playgroundFocused;
+        return playgroundFocused;
+      },
+    );
+    final start = service.start();
+    expect(desktop.captured, isTrue);
+    playgroundFocused = false;
+    delayedSettings.key.complete('test-key');
+    await start;
+    expect(capturedPlayground, isTrue);
+    expect(audio.started, isTrue);
   });
   test('preserves transcript in history when target changes', () async {
     final desktop = FlowDesktop(changed: true);

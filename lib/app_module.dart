@@ -62,10 +62,8 @@ class AppModule {
         settings,
         AudioService(),
         desktop,
-        canPaste: () =>
-            !controller.settingsVisible.value || controller.playgroundFocused,
-        playgroundActive: () =>
-            controller.settingsVisible.value && controller.playgroundFocused,
+        canPaste: () => controller.canPaste,
+        playgroundActive: () => controller.playgroundActive,
         insertPlayground: (text) =>
             controller.insertPlayground?.call(text) ?? false,
       ),
