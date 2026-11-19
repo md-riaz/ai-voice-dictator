@@ -12,13 +12,14 @@ void main() {
     final store = SettingsStore();
     await store.initialize(databasePath: inMemoryDatabasePath);
     expect(store.shortcut(), 'Ctrl+Win');
-    await store.setShortcuts('Win+Shift', 'Win+Shift+Alt');
+    await store.setShortcuts('Win+Shift', 'Win+Shift+Alt', 'F8');
     final reopened = SettingsStore();
     await reopened.initialize(databasePath: inMemoryDatabasePath);
     expect(reopened.shortcut(), 'Win+Shift');
     expect(reopened.translationShortcut(), 'Win+Shift+Alt');
+    expect(reopened.handsFreeKey(), 'F8');
     await expectLater(
-      store.setShortcuts('Ctrl', 'Ctrl+Alt'),
+      store.setShortcuts('Ctrl', 'Ctrl+Alt', 'Space'),
       throwsFormatException,
     );
     await store.close();

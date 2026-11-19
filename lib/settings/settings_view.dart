@@ -710,6 +710,33 @@ class _SettingsViewState extends State<SettingsView> {
                                       },
                                     ),
                                     const SizedBox(height: 12),
+                                    DropdownButtonFormField<String>(
+                                      key: ValueKey(
+                                        'handsFree:${controller.handsFreeKey}:${controller.pageError}',
+                                      ),
+                                      initialValue: controller.handsFreeKey,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Hands-free key',
+                                      ),
+                                      items: [
+                                        for (final key
+                                            in SettingsStore.handsFreeKeys)
+                                          DropdownMenuItem(
+                                            value: key,
+                                            child: Text(key),
+                                          ),
+                                      ],
+                                      onChanged: (key) {
+                                        if (key != null) {
+                                          controller.changeShortcuts(
+                                            controller.shortcut,
+                                            controller.translationShortcut,
+                                            key: key,
+                                          );
+                                        }
+                                      },
+                                    ),
+                                    const SizedBox(height: 12),
                                     Text(
                                       '${controller.shortcut.replaceAll('+', ' + ')}  ·  Hold to dictate; release to finish',
                                     ),
@@ -719,7 +746,7 @@ class _SettingsViewState extends State<SettingsView> {
                                     ),
                                     const SizedBox(height: 8),
                                     Text(
-                                      '${controller.shortcut.replaceAll('+', ' + ')} + Space  ·  Press to start or finish hands-free',
+                                      '${controller.shortcut.replaceAll('+', ' + ')} + ${controller.handsFreeKey}  ·  Press to start or finish hands-free',
                                     ),
                                     const SizedBox(height: 8),
                                     const Text('Esc  ·  Cancel dictation'),
@@ -829,6 +856,17 @@ class _SettingsViewState extends State<SettingsView> {
                                             value: null,
                                             child: Text('System default'),
                                           ),
+                                          if (controller.device != null &&
+                                              !controller.devices.any(
+                                                (d) =>
+                                                    d.id == controller.device,
+                                              ))
+                                            DropdownMenuItem(
+                                              value: controller.device,
+                                              child: const Text(
+                                                'Selected microphone unavailable',
+                                              ),
+                                            ),
                                           ...controller.devices.map(
                                             (d) => DropdownMenuItem(
                                               value: d.id,

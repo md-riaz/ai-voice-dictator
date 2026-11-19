@@ -128,6 +128,12 @@ class SettingsStore {
   }
 
   static const shortcutModifiers = ['Ctrl', 'Win', 'Alt', 'Shift'];
+  static final handsFreeKeys = [
+    'Space',
+    ...List.generate(26, (i) => String.fromCharCode(65 + i)),
+    ...List.generate(10, (i) => '$i'),
+    ...List.generate(12, (i) => 'F${i + 1}'),
+  ];
   static const shortcutBases = [
     'Ctrl+Win',
     'Ctrl+Alt',
@@ -146,17 +152,28 @@ class SettingsStore {
 
   List<String> _shortcutConfiguration() {
     final parts = (_prefs.getString('shortcut_config') ?? '').split('|');
-    if (parts.length == 2 && validShortcuts(parts[0], parts[1])) return parts;
-    return ['Ctrl+Win', 'Ctrl+Win+Alt'];
+    if ((parts.length == 2 || parts.length == 3) &&
+        validShortcuts(parts[0], parts[1])) {
+      return [
+        parts[0],
+        parts[1],
+        if (parts.length == 3 && handsFreeKeys.contains(parts[2]))
+          parts[2]
+        else
+          'Space',
+      ];
+    }
+    return ['Ctrl+Win', 'Ctrl+Win+Alt', 'Space'];
   }
 
   String shortcut() => _shortcutConfiguration()[0];
   String translationShortcut() => _shortcutConfiguration()[1];
-  Future<void> setShortcuts(String hold, String translation) async {
-    if (!validShortcuts(hold, translation)) {
+  String handsFreeKey() => _shortcutConfiguration()[2];
+  Future<void> setShortcuts(String hold, String translation, String key) async {
+    if (!validShortcuts(hold, translation) || !handsFreeKeys.contains(key)) {
       throw const FormatException('Choose a valid shortcut combination.');
     }
-    await _prefs.setString('shortcut_config', '$hold|$translation');
+    await _prefs.setString('shortcut_config', '$hold|$translation|$key');
   }
 
   Future<void> addHistory(String text, Duration duration) async {

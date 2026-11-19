@@ -20,7 +20,7 @@ class SettingsController extends VeloraController {
   });
   final SettingsStore store;
   final SettingsService service;
-  final Future<void> Function(String, String) onShortcutChanged;
+  final Future<void> Function(String, String, String) onShortcutChanged;
   final Future<bool> Function()? getAutoStart;
   final Future<void> Function(bool)? onAutoStartChanged;
   final String? initialError;
@@ -57,6 +57,7 @@ class SettingsController extends VeloraController {
   bool typeText = false;
   String shortcut = 'Ctrl+Win';
   String translationShortcut = 'Ctrl+Win+Alt';
+  String handsFreeKey = 'Space';
   String keyStatus = 'Key missing';
   String? pageError;
   bool pageLoading = true;
@@ -113,9 +114,10 @@ class SettingsController extends VeloraController {
         typeText = store.typeText();
         shortcut = store.shortcut();
         translationShortcut = store.translationShortcut();
+        handsFreeKey = store.handsFreeKey();
         this.devices = devices;
         final savedDevice = store.deviceId();
-        device = devices.any((d) => d.id == savedDevice) ? savedDevice : null;
+        device = savedDevice;
         this.history = history;
         historyRetention = store.historyRetention();
         historyHasMore = history.length == 50 && history.last.id != null;
@@ -256,22 +258,29 @@ class SettingsController extends VeloraController {
     }
   }
 
-  Future<void> changeShortcuts(String primary, String translation) async {
+  Future<void> changeShortcuts(
+    String primary,
+    String translation, {
+    String? key,
+  }) async {
+    final newKey = key ?? handsFreeKey;
     try {
-      if (!SettingsStore.validShortcuts(primary, translation)) {
+      if (!SettingsStore.validShortcuts(primary, translation) ||
+          !SettingsStore.handsFreeKeys.contains(newKey)) {
         throw const FormatException('Choose a valid shortcut combination.');
       }
-      await onShortcutChanged(primary, translation);
+      await onShortcutChanged(primary, translation, newKey);
       try {
-        await store.setShortcuts(primary, translation);
+        await store.setShortcuts(primary, translation, newKey);
       } catch (_) {
-        await onShortcutChanged(shortcut, translationShortcut);
+        await onShortcutChanged(shortcut, translationShortcut, handsFreeKey);
         rethrow;
       }
       if (!_closed) {
         _updateState(() {
           shortcut = primary;
           translationShortcut = translation;
+          handsFreeKey = newKey;
           pageError = null;
         });
       }
@@ -295,6 +304,15 @@ class SettingsController extends VeloraController {
           throw StateError('Microphone permission denied.');
         }
         final selected = devices.where((d) => d.id == device).firstOrNull;
+        if (device != null && selected == null) {
+          if (!_closed) {
+            _updateState(
+              () => pageError =
+                  'Selected microphone unavailable. Choose another input.',
+            );
+          }
+          return;
+        }
         final stream = await service.startMic(selected);
         samples = stream.listen(
           (_) {},

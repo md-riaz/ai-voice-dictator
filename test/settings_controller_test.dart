@@ -59,14 +59,19 @@ class FakeSettings implements SettingsStore {
   String translationShortcut() => savedTranslationShortcut;
   String savedShortcut = 'Ctrl+Win';
   String savedTranslationShortcut = 'Ctrl+Win+Alt';
+  String savedHandsFreeKey = 'Space';
   @override
-  Future<void> setShortcuts(String hold, String translation) async {
+  String handsFreeKey() => savedHandsFreeKey;
+  @override
+  Future<void> setShortcuts(String hold, String translation, String key) async {
     savedShortcut = hold;
     savedTranslationShortcut = translation;
+    savedHandsFreeKey = key;
   }
 
   @override
-  String? deviceId() => 'device';
+  String? deviceId() => savedDevice;
+  String? savedDevice = 'device';
   @override
   Future<void> clearHistory() async {
     if (failClearHistory) throw StateError('delete failed');
@@ -150,11 +155,12 @@ void main() {
     final controller = SettingsController(
       store: store,
       service: FakeSettingsService(),
-      onShortcutChanged: (hold, translation) async =>
-          calls.add('$hold|$translation'),
+      onShortcutChanged: (hold, translation, key) async =>
+          calls.add('$hold|$translation|$key'),
     );
-    await controller.changeShortcuts('Ctrl+Alt', 'Ctrl+Alt+Shift');
-    expect(calls, ['Ctrl+Alt|Ctrl+Alt+Shift']);
+    await controller.changeShortcuts('Ctrl+Alt', 'Ctrl+Alt+Shift', key: 'F8');
+    expect(calls, ['Ctrl+Alt|Ctrl+Alt+Shift|F8']);
+    expect(store.handsFreeKey(), 'F8');
     expect(store.shortcut(), 'Ctrl+Alt');
     expect(controller.translationShortcut, 'Ctrl+Alt+Shift');
     await controller.changeShortcuts('Ctrl+Alt', 'Ctrl+Alt');
@@ -171,7 +177,7 @@ void main() {
       final controller = SettingsController(
         store: FakeSettings(),
         service: FakeSettingsService(),
-        onShortcutChanged: (_, _) async {},
+        onShortcutChanged: (_, _, _) async {},
         getAutoStart: () async => enabled,
         onAutoStartChanged: (value) async {
           if (fail) throw StateError('failed');
@@ -198,7 +204,7 @@ void main() {
       final controller = SettingsController(
         store: store,
         service: FakeSettingsService(),
-        onShortcutChanged: (_, _) async {},
+        onShortcutChanged: (_, _, _) async {},
       );
       controller.chooseModel('gemini-3.5-flash-lite');
       await controller.saveModel();
@@ -225,7 +231,7 @@ void main() {
     final controller = SettingsController(
       store: store,
       service: FakeSettingsService(),
-      onShortcutChanged: (_, _) async {},
+      onShortcutChanged: (_, _, _) async {},
     );
     await tester.pumpWidget(
       MaterialApp(
@@ -255,7 +261,7 @@ void main() {
     final controller = SettingsController(
       store: FakeSettings()..initialKey = '',
       service: service,
-      onShortcutChanged: (_, _) async {},
+      onShortcutChanged: (_, _, _) async {},
     );
     await tester.pumpWidget(
       MaterialApp(
@@ -284,7 +290,7 @@ void main() {
     final controller = SettingsController(
       store: FakeSettings(),
       service: service,
-      onShortcutChanged: (_, _) async {},
+      onShortcutChanged: (_, _, _) async {},
     );
     await tester.pumpWidget(
       MaterialApp(
@@ -311,7 +317,7 @@ void main() {
     final controller = SettingsController(
       store: settings,
       service: FakeSettingsService(),
-      onShortcutChanged: (_, _) async {},
+      onShortcutChanged: (_, _, _) async {},
     );
     await tester.pumpWidget(
       MaterialApp(
@@ -369,7 +375,7 @@ void main() {
     final controller = SettingsController(
       store: FakeSettings(),
       service: FakeSettingsService(),
-      onShortcutChanged: (_, _) async {},
+      onShortcutChanged: (_, _, _) async {},
     );
     await tester.pumpWidget(
       MaterialApp(
@@ -385,7 +391,7 @@ void main() {
     final controller = SettingsController(
       store: FakeSettings(),
       service: FakeSettingsService(),
-      onShortcutChanged: (_, _) async {},
+      onShortcutChanged: (_, _, _) async {},
     );
     await tester.pumpWidget(
       MaterialApp(
@@ -405,7 +411,7 @@ void main() {
     final controller = SettingsController(
       store: store,
       service: FakeSettingsService(),
-      onShortcutChanged: (_, _) async {},
+      onShortcutChanged: (_, _, _) async {},
     );
     await tester.pumpWidget(
       MaterialApp(
@@ -450,7 +456,7 @@ void main() {
     final controller = SettingsController(
       store: FakeSettings(),
       service: FakeSettingsService(),
-      onShortcutChanged: (_, _) async {},
+      onShortcutChanged: (_, _, _) async {},
     );
     await tester.pumpWidget(
       MaterialApp(
@@ -472,7 +478,7 @@ void main() {
     final controller = SettingsController(
       store: store,
       service: FakeSettingsService(),
-      onShortcutChanged: (_, _) async {},
+      onShortcutChanged: (_, _, _) async {},
     );
     await tester.pumpWidget(
       MaterialApp(
@@ -501,7 +507,7 @@ void main() {
     final controller = SettingsController(
       store: store,
       service: FakeSettingsService(),
-      onShortcutChanged: (_, _) async {},
+      onShortcutChanged: (_, _, _) async {},
     );
     await tester.pumpWidget(
       MaterialApp(
@@ -552,7 +558,7 @@ void main() {
     final controller = SettingsController(
       store: store,
       service: FakeSettingsService(),
-      onShortcutChanged: (_, _) async {},
+      onShortcutChanged: (_, _, _) async {},
     );
     await tester.pumpWidget(
       MaterialApp(
@@ -575,7 +581,7 @@ void main() {
     final controller = SettingsController(
       store: store,
       service: FakeSettingsService(),
-      onShortcutChanged: (_, _) async {},
+      onShortcutChanged: (_, _, _) async {},
     );
     await controller.load();
     await controller.clearHistory();
@@ -591,7 +597,7 @@ void main() {
       final controller = SettingsController(
         store: FakeSettings(),
         service: service,
-        onShortcutChanged: (_, _) async {},
+        onShortcutChanged: (_, _, _) async {},
       );
       await controller.load();
       expect(controller.key.text, 'saved-key');
@@ -603,6 +609,18 @@ void main() {
       controller.onClose();
     },
   );
+  test('retains an unavailable microphone selection', () async {
+    final controller = SettingsController(
+      store: FakeSettings()..savedDevice = 'disconnected',
+      service: FakeSettingsService(),
+      onShortcutChanged: (_, _, _) async {},
+    );
+    await controller.load();
+    expect(controller.device, 'disconnected');
+    expect(controller.devices.any((d) => d.id == controller.device), isFalse);
+    await controller.closeResources();
+    controller.onClose();
+  });
   test(
     'checks a saved key in the background without blocking settings',
     () async {
@@ -610,7 +628,7 @@ void main() {
       final controller = SettingsController(
         store: FakeSettings(),
         service: service,
-        onShortcutChanged: (_, _) async {},
+        onShortcutChanged: (_, _, _) async {},
       );
       await controller.load();
       expect(controller.pageLoading, false);
@@ -631,7 +649,7 @@ void main() {
       final controller = SettingsController(
         store: FakeSettings(),
         service: service,
-        onShortcutChanged: (_, _) async {},
+        onShortcutChanged: (_, _, _) async {},
       );
       await controller.load();
       controller.key.text = 'other-key';
@@ -651,7 +669,7 @@ void main() {
     final controller = SettingsController(
       store: store,
       service: service,
-      onShortcutChanged: (_, _) async {},
+      onShortcutChanged: (_, _, _) async {},
     );
     controller.key.text = 'new-key';
     final pending = controller.saveKey();
@@ -670,7 +688,7 @@ void main() {
     final controller = SettingsController(
       store: FakeSettings(),
       service: service,
-      onShortcutChanged: (_, _) async {},
+      onShortcutChanged: (_, _, _) async {},
     );
     controller.key.text = 'old-key';
     final pending = controller.testKey();
@@ -687,7 +705,7 @@ void main() {
     final controller = SettingsController(
       store: FakeSettings(),
       service: service,
-      onShortcutChanged: (_, _) async {},
+      onShortcutChanged: (_, _, _) async {},
     );
     final operation = controller.toggleMic();
     final closing = controller.closeResources();

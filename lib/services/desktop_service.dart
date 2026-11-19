@@ -321,7 +321,11 @@ class DesktopService {
   Future<void> setRecording(bool active) =>
       _keyChannel.invokeMethod<void>('setRecording', active);
 
-  Future<void> registerShortcuts(String primary, String translation) async {
+  Future<void> registerShortcuts(
+    String primary,
+    String translation,
+    String handsFreeKey,
+  ) async {
     if (!hotkeysAvailable) {
       throw StateError('Global shortcuts are unavailable.');
     }
@@ -330,7 +334,7 @@ class DesktopService {
       {
         'hold': primary,
         'translation': translation,
-        'handsFree': '$primary+Space',
+        'handsFree': '$primary+$handsFreeKey',
       },
     );
     if (accepted != true) {

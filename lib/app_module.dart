@@ -81,6 +81,7 @@ class AppModule {
         await desktop.registerShortcuts(
           settings.shortcut(),
           settings.translationShortcut(),
+          settings.handsFreeKey(),
         );
       } catch (_) {
         desktop.hotkeysAvailable = false;

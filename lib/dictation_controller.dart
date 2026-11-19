@@ -48,31 +48,39 @@ class DictationController extends VeloraController {
     switch (event) {
       case 'holdStart':
       case 'translationStart':
-        if (_mode != null || paused || _settingsBlocksShortcut) {
+        if (_mode != null || _busy || paused || _settingsBlocksShortcut) {
           return;
         }
+        _mode = 'hold';
         await toggle(translate: event == 'translationStart');
-        if (_listening) _mode = 'hold';
+        if (!_listening && _mode == 'hold') _mode = null;
       case 'switchTranslation':
         if (_mode != 'hold') return;
+        if (_busy && !processing) await _operationDone?.future;
+        if (_mode != 'hold' || !_listening) return;
         await cancel();
         await toggle(translate: true);
         if (_listening) _mode = 'hold';
       case 'holdStop':
         if (_mode != 'hold') return;
         _mode = null;
-        await toggle();
+        if (_busy && !processing) await _operationDone?.future;
+        if (_listening) await toggle();
       case 'handsFree':
         if (_mode == 'hold') {
           _mode = 'handsFree';
         } else if (_mode == 'handsFree') {
           _mode = null;
+          if (_busy && !processing) await _operationDone?.future;
+          if (_listening) await toggle();
+        } else if (!_busy && !paused && !_settingsBlocksShortcut) {
+          _mode = 'handsFree';
           await toggle();
-        } else if (!paused && !_settingsBlocksShortcut) {
-          await toggle();
-          if (_listening) _mode = 'handsFree';
+          if (!_listening && _mode == 'handsFree') _mode = null;
         }
       case 'cancel':
+        _mode = null;
+        if (_busy && !processing) await _operationDone?.future;
         await cancel();
     }
   }

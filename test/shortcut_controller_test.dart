@@ -117,6 +117,56 @@ void main() {
     expect(service.events, ['cancel']);
     expect(controller.recording.value, false);
   });
+  test('release during microphone startup finishes once ready', () async {
+    final service = SlowDictation();
+    final controller = DictationController(
+      service,
+      FakeSettings(),
+      FakeDesktop(),
+    );
+    final start = controller.handleShortcut('holdStart');
+    await Future<void>.delayed(Duration.zero);
+    final stop = controller.handleShortcut('holdStop');
+    service.ready.complete();
+    await Future.wait([start, stop]);
+    expect(service.events, ['finish']);
+    expect(controller.recording.value, false);
+  });
+  test('hands-free promotion during startup survives hold release', () async {
+    final service = SlowDictation();
+    final controller = DictationController(
+      service,
+      FakeSettings(),
+      FakeDesktop(),
+    );
+    final start = controller.handleShortcut('holdStart');
+    await Future<void>.delayed(Duration.zero);
+    await controller.handleShortcut('handsFree');
+    await controller.handleShortcut('holdStop');
+    service.ready.complete();
+    await start;
+    expect(controller.recording.value, true);
+    await controller.handleShortcut('handsFree');
+    expect(service.events, ['finish']);
+  });
+  test(
+    'cancel during microphone startup discards recording once ready',
+    () async {
+      final service = SlowDictation();
+      final controller = DictationController(
+        service,
+        FakeSettings(),
+        FakeDesktop(),
+      );
+      final start = controller.handleShortcut('holdStart');
+      await Future<void>.delayed(Duration.zero);
+      final cancel = controller.handleShortcut('cancel');
+      service.ready.complete();
+      await Future.wait([start, cancel]);
+      expect(service.events, ['cancel']);
+      expect(controller.recording.value, false);
+    },
+  );
   test(
     'resume waits for suspended startup cleanup before another start',
     () async {

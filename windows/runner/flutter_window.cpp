@@ -2,6 +2,7 @@
 
 #include <optional>
 #include <cmath>
+#include <cassert>
 #include <flutter/method_channel.h>
 #include <flutter/standard_method_codec.h>
 
@@ -20,9 +21,10 @@ constexpr unsigned kCtrl = 1, kWin = 2, kAlt = 4, kShift = 8, kSpace = 16;
 unsigned hold_chord = kCtrl | kWin;
 unsigned translation_chord = kCtrl | kWin | kAlt;
 unsigned hands_free_chord = kCtrl | kWin | kSpace;
+unsigned hands_free_key = VK_SPACE;
 unsigned previous_keys = 0;
 bool hold_started = false, translating = false, chord_used = false, recording = false;
-bool swallowed_space = false;
+bool swallowed_key = false;
 constexpr UINT_PTR kHoldTimer = 102;
 constexpr UINT_PTR kHudTimer = 103;
 
@@ -38,7 +40,7 @@ unsigned PhysicalKeys() {
   if ((GetAsyncKeyState(VK_LWIN) | GetAsyncKeyState(VK_RWIN)) & 0x8000) pressed |= kWin;
   if (GetAsyncKeyState(VK_MENU) & 0x8000) pressed |= kAlt;
   if (GetAsyncKeyState(VK_SHIFT) & 0x8000) pressed |= kShift;
-  if (GetAsyncKeyState(VK_SPACE) & 0x8000) pressed |= kSpace;
+  if (GetAsyncKeyState(hands_free_key) & 0x8000) pressed |= kSpace;
   return pressed;
 }
 
@@ -47,7 +49,7 @@ unsigned ModifierForKey(DWORD key) {
   if (key == VK_LWIN || key == VK_RWIN) return kWin;
   if (key == VK_MENU || key == VK_LMENU || key == VK_RMENU) return kAlt;
   if (key == VK_SHIFT || key == VK_LSHIFT || key == VK_RSHIFT) return kShift;
-  if (key == VK_SPACE) return kSpace;
+  if (key == hands_free_key) return kSpace;
   return 0;
 }
 
@@ -82,6 +84,22 @@ bool ParseChord(const std::string& value, unsigned* result) {
   }
   *result = pressed;
   return pressed != 0;
+}
+
+unsigned ParseHandsFreeKey(const std::string& value) {
+  if (value == "Space") return VK_SPACE;
+  if (value.size() == 1 && ((value[0] >= 'A' && value[0] <= 'Z') ||
+                            (value[0] >= '0' && value[0] <= '9'))) return value[0];
+  if (value.size() >= 2 && value[0] == 'F') {
+    unsigned number = 0;
+    for (size_t i = 1; i < value.size(); ++i) {
+      if (value[i] < '0' || value[i] > '9') return 0;
+      number = number * 10 + value[i] - '0';
+      if (number > 12) return 0;
+    }
+    if (number >= 1 && value == "F" + std::to_string(number)) return VK_F1 + number - 1;
+  }
+  return 0;
 }
 
 constexpr bool HasVisibleTitleBar(const RECT& window, const RECT& work) {
@@ -246,10 +264,11 @@ LRESULT CALLBACK KeyboardHook(int code, WPARAM message, LPARAM data) {
   const bool changed = current != previous_keys;
   previous_keys = current;
 
-  if (up && key == VK_SPACE && swallowed_space) {
-    swallowed_space = false;
+  if (up && key == hands_free_key && swallowed_key) {
+    swallowed_key = false;
     return 1;
   }
+  if (down && key == hands_free_key && swallowed_key) return 1;
   if (hold_started && ((current & (translating ? translation_chord : hold_chord)) !=
                        (translating ? translation_chord : hold_chord))) {
     hold_started = false;
@@ -264,7 +283,7 @@ LRESULT CALLBACK KeyboardHook(int code, WPARAM message, LPARAM data) {
     hold_started = false;
     translating = false;
     chord_used = true;
-    if (key == VK_SPACE) { swallowed_space = true; return 1; }
+    if (key == hands_free_key) { swallowed_key = true; return 1; }
   } else if (down && changed && !chord_used && MatchesChord(current, translation_chord)) {
     KillTimer(key_window, kHoldTimer);
     Emit(hold_started ? "switchTranslation" : "translationStart");
@@ -279,7 +298,13 @@ LRESULT CALLBACK KeyboardHook(int code, WPARAM message, LPARAM data) {
 }
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
-    : project_(project) {}
+    : project_(project) {
+  assert(ParseHandsFreeKey("Space") == VK_SPACE);
+  assert(ParseHandsFreeKey("A") == 'A');
+  assert(ParseHandsFreeKey("F12") == VK_F12);
+  assert(ParseHandsFreeKey("F13") == 0);
+  assert(ParseHandsFreeKey("F01") == 0);
+}
 
 FlutterWindow::~FlutterWindow() {}
 
@@ -321,16 +346,28 @@ bool FlutterWindow::OnCreate() {
         auto value = std::get_if<std::string>(&entry->second);
         return value && ParseChord(*value, chord);
       };
-      unsigned hold = 0, translation = 0, hands_free = 0;
-      if (recording || !read("hold", &hold) || !read("translation", &translation) ||
-          !read("handsFree", &hands_free) || (hold & kSpace) ||
+      unsigned hold = 0, translation = 0, hands_free = 0, new_key = 0;
+      if (args) {
+        auto entry = args->find(flutter::EncodableValue("handsFree"));
+        if (entry != args->end()) {
+          if (const auto* value = std::get_if<std::string>(&entry->second)) {
+            const auto split = value->rfind('+');
+            if (split != std::string::npos && ParseChord(value->substr(0, split), &hands_free)) {
+              new_key = ParseHandsFreeKey(value->substr(split + 1));
+            }
+          }
+        }
+      }
+      if (recording || swallowed_key || !read("hold", &hold) || !read("translation", &translation) ||
+          !new_key || (hold & kSpace) ||
           (hold & (hold - 1)) == 0 || translation == hold ||
           (translation & hold) != hold || (translation & kSpace) ||
-          hands_free != (hold | kSpace)) {
+          hands_free != hold) {
         result->Error("invalid_shortcut", "Shortcuts must use distinct supported combinations.");
       } else {
         KillTimer(key_window, kHoldTimer);
-        hold_chord = hold; translation_chord = translation; hands_free_chord = hands_free;
+        hold_chord = hold; translation_chord = translation; hands_free_chord = hands_free | kSpace;
+        hands_free_key = new_key;
         previous_keys = PhysicalKeys();
         hold_started = false; translating = false; chord_used = previous_keys != 0;
         result->Success(flutter::EncodableValue(true));
