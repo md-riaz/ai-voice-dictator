@@ -67,7 +67,7 @@ class DictationService {
     if (recording == null) {
       throw const DictationException(
         'audio_empty',
-        'No audio was captured. Wait for “Speak now”, then speak and release. Check your microphone if it continues.',
+        'No audio captured. Wait for “Speak now”, then try again.',
       );
     }
     try {

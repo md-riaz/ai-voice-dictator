@@ -109,7 +109,7 @@ Future<void> normalizeRecordedWav(File file) async {
   if (peak < 300) {
     throw const DictationException(
       'audio_silent',
-      'No speech detected. Check your microphone.',
+      'No speech detected. Speak louder or check your microphone.',
     );
   }
   // shortcut: threshold can miss very quiet speech; use VAD for better detection.

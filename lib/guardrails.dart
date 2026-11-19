@@ -13,13 +13,13 @@ class DictationGuardrails {
     if (durationMs < 500) {
       throw const DictationException(
         'audio_too_short',
-        'Hold the key longer while speaking.',
+        'Too short. Speak a little longer before stopping.',
       );
     }
     if (file.lengthSync() < 8192) {
       throw const DictationException(
         'audio_silent',
-        'No speech detected. Check your microphone.',
+        'No speech detected. Speak louder or check your microphone.',
       );
     }
   }
