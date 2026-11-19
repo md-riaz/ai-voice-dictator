@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:record/record.dart';
 import 'package:velora/velora.dart';
 
+import '../services/gemini_service.dart';
 import 'settings_service.dart';
 import 'settings_store.dart';
 
@@ -36,6 +37,7 @@ class SettingsController extends VeloraController {
   final key = TextEditingController();
   final target = TextEditingController();
   final modelInput = TextEditingController();
+  final systemPrompt = TextEditingController();
   String modelChoice = SettingsStore.defaultModel;
   static const knownModels = [
     SettingsStore.defaultModel,
@@ -93,6 +95,8 @@ class SettingsController extends VeloraController {
         final savedModel = store.model();
         modelChoice = knownModels.contains(savedModel) ? savedModel : 'custom';
         modelInput.text = savedModel;
+        systemPrompt.text =
+            store.systemPrompt() ?? kDictationSystemInstruction.trim();
         language = store.language();
         shortcut = store.shortcut();
         translationShortcut = store.translationShortcut();
@@ -295,6 +299,22 @@ class SettingsController extends VeloraController {
     _updateState(() => modelInput.text = model);
   }
 
+  Future<void> saveSystemPrompt() async {
+    final value = systemPrompt.text.trim();
+    await store.setSystemPrompt(
+      value == kDictationSystemInstruction.trim() ? null : value,
+    );
+    _updateState(
+      () => systemPrompt.text =
+          store.systemPrompt() ?? kDictationSystemInstruction.trim(),
+    );
+  }
+
+  Future<void> resetSystemPrompt() async {
+    await store.setSystemPrompt(null);
+    _updateState(() => systemPrompt.text = kDictationSystemInstruction.trim());
+  }
+
   Future<void> setTarget(String value) async {
     if (value.trim().isNotEmpty) await store.setTargetLanguage(value.trim());
   }
@@ -337,6 +357,7 @@ class SettingsController extends VeloraController {
     key.dispose();
     target.dispose();
     modelInput.dispose();
+    systemPrompt.dispose();
     super.onClose();
   }
 }

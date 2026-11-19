@@ -62,6 +62,17 @@ class SettingsStore {
   }
 
   String language() => _prefs.getString('language') ?? 'auto';
+  String? systemPrompt() => _prefs.getString('system_prompt');
+  Future<void> setSystemPrompt(String? value) async {
+    if (value == null || value.trim().isEmpty) {
+      await _prefs.remove('system_prompt');
+    } else if (value.length > 5000) {
+      throw const FormatException('Prompt must be 5000 characters or fewer.');
+    } else {
+      await _prefs.setString('system_prompt', value.trim());
+    }
+  }
+
   String model() {
     final value = _prefs.getString('gemini_model');
     return value != null && validModel(value) ? value : defaultModel;

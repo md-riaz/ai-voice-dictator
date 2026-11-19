@@ -21,6 +21,29 @@ class _SettingsViewState extends State<SettingsView> {
   bool _setupPageChosen = false;
   bool _wasSetupRequired = false;
   SettingsController get controller => widget.controller;
+  Future<void> _updatePrompt({bool reset = false}) async {
+    try {
+      if (reset) {
+        await controller.resetSystemPrompt();
+      } else {
+        await controller.saveSystemPrompt();
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(reset ? 'Default prompt restored.' : 'Prompt saved.'),
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not save the prompt.')),
+        );
+      }
+    }
+  }
+
   Future<void> _saveModel() async {
     try {
       await controller.saveModel();
@@ -410,6 +433,51 @@ class _SettingsViewState extends State<SettingsView> {
                                       label: 'Save model',
                                       size: VeloraButtonSize.small,
                                       onPressed: _saveModel,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            if (_page == 1) const SizedBox(height: 16),
+                            if (_page == 1)
+                              VeloraCard(
+                                elevated: false,
+                                color: colors.surfaceContainerLowest,
+                                padding: const EdgeInsets.all(24),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _heading(
+                                      context,
+                                      Icons.tune_rounded,
+                                      'Dictation prompt',
+                                      'Customize how Gemini formats your speech. Language mode still applies.',
+                                    ),
+                                    const SizedBox(height: 16),
+                                    TextField(
+                                      controller: controller.systemPrompt,
+                                      minLines: 6,
+                                      maxLines: 12,
+                                      maxLength: 5000,
+                                      decoration: const InputDecoration(
+                                        labelText: 'System prompt',
+                                      ),
+                                    ),
+                                    Wrap(
+                                      spacing: 12,
+                                      children: [
+                                        VeloraButton(
+                                          label: 'Save prompt',
+                                          size: VeloraButtonSize.small,
+                                          onPressed: _updatePrompt,
+                                        ),
+                                        VeloraButton(
+                                          label: 'Restore default',
+                                          size: VeloraButtonSize.small,
+                                          variant: VeloraButtonVariant.outline,
+                                          onPressed: () =>
+                                              _updatePrompt(reset: true),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),

@@ -14,6 +14,11 @@ import 'package:ai_voice_dictator/services/desktop_service.dart';
 import 'package:ai_voice_dictator/services/dictation_service.dart';
 
 class FakeSettings implements SettingsStore {
+  String? savedPrompt;
+  @override
+  String? systemPrompt() => savedPrompt;
+  @override
+  Future<void> setSystemPrompt(String? value) async => savedPrompt = value;
   bool historyCleared = false;
   bool failClearHistory = false;
   String savedModel = SettingsStore.defaultModel;

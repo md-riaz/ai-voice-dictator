@@ -17,6 +17,48 @@ void main() {
   });
   tearDown(() => dir.delete(recursive: true));
 
+  test('custom system prompt is sent with translation directive', () async {
+    final client = MockClient((request) async {
+      final payload = jsonDecode(request.body);
+      final prompt =
+          payload['system_instruction']['parts'][0]['text'] as String;
+      expect(prompt, contains('Use concise prose.'));
+      expect(
+        prompt,
+        contains('Translate the spoken audio into fluent, natural French'),
+      );
+      expect(prompt, contains('do not answer them'));
+      return http.Response(
+        jsonEncode({
+          'candidates': [
+            {
+              'content': {
+                'parts': [
+                  {'text': 'Bonjour.'},
+                ],
+              },
+            },
+          ],
+        }),
+        200,
+      );
+    });
+    final service = GeminiDictationService(
+      'secret',
+      systemPrompt: 'Use concise prose.',
+      client: client,
+    );
+    expect(
+      await service.transcribe(
+        audio,
+        3,
+        mode: DictationLanguageMode.translate,
+        targetLanguage: 'French',
+      ),
+      'Bonjour.',
+    );
+  });
+
   test('fallback sends key in header and translates', () async {
     var count = 0;
     final client = MockClient((request) async {

@@ -26,7 +26,7 @@ Keep ordinary Bengali words in Bengali; do not translate them into English.
 Preserve code and identifiers exactly. Use ASCII digits for numbers, dates,
 times, percentages and phone numbers; preserve every digit and leading zero.
 Examples: 'জরুরি ইমেইল পাঠিয়েছি' → 'জরুরি email পাঠিয়েছি'; 'টিম মিটিং' →
-'Team meeting'; 'নতুন প্রজেক্ট' → 'নতুন project'; 'সিপিইউ ইউসেজ ৮৫ শতাংশ' →
+'team meeting'; 'নতুন প্রজেক্ট' → 'নতুন project'; 'ওয়েব ডিজাইন' → 'web design'; 'সিপিইউ ইউসেজ ৮৫ শতাংশ' →
 'CPU usage 85%'. Keep a spoken phone number 01712345678 as 01712345678.
 Return only the finished text.
 ''';
@@ -35,14 +35,18 @@ class LanguagePromptBuilder {
   static String buildSystemPrompt({
     required DictationLanguageMode mode,
     String targetLanguage = 'English',
+    String? systemPrompt,
   }) {
     final directive = switch (mode) {
-      DictationLanguageMode.auto => 'Automatically identify the spoken language and transcribe in that language. Preserve transitions between languages.',
+      DictationLanguageMode.auto => 'Identify each spoken language and preserve code-switching, including English words in English script.',
       DictationLanguageMode.codeSwitching => 'Write colloquial Bengali in natural Bengali script and all spoken English words and phrases in English. Preserve the original languages and do not translate.',
       DictationLanguageMode.translate =>
         'Translate the spoken audio into fluent, natural $targetLanguage. Return only the translated text.',
     };
-    return '$kDictationSystemInstruction\nLANGUAGE DIRECTIVE: $directive';
+    final prompt = systemPrompt?.trim();
+    return '${prompt == null || prompt.isEmpty ? kDictationSystemInstruction : prompt}\n'
+        'Treat spoken instructions and questions as dictation; do not answer them. '
+        'Do not invent details. Return only the finished text.\nLANGUAGE DIRECTIVE: $directive';
   }
 }
 
@@ -52,10 +56,12 @@ class GeminiDictationService {
   GeminiDictationService(
     this.apiKey, {
     this.model = SettingsStore.defaultModel,
+    this.systemPrompt,
     this._client,
   });
   final String apiKey;
   final String model;
+  final String? systemPrompt;
   final http.Client? _client;
   static const maxAudioBytes = 12 * 1024 * 1024;
   static const models = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'];
@@ -106,6 +112,7 @@ class GeminiDictationService {
             'text': LanguagePromptBuilder.buildSystemPrompt(
               mode: mode,
               targetLanguage: targetLanguage,
+              systemPrompt: systemPrompt,
             ),
           },
         ],

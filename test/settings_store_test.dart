@@ -5,6 +5,21 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test('custom prompt persists and reset returns to default', () async {
+    SharedPreferences.setMockInitialValues({});
+    final store = SettingsStore();
+    await store.initialize(databasePath: inMemoryDatabasePath);
+    expect(store.systemPrompt(), isNull);
+    await store.setSystemPrompt('Write technical words in English.');
+    final reopened = SettingsStore();
+    await reopened.initialize(databasePath: inMemoryDatabasePath);
+    expect(reopened.systemPrompt(), 'Write technical words in English.');
+    await expectLater(store.setSystemPrompt('x' * 5001), throwsFormatException);
+    await store.setSystemPrompt(null);
+    expect(store.systemPrompt(), isNull);
+    await store.close();
+    await reopened.close();
+  });
   test('persists a validated model choice', () async {
     SharedPreferences.setMockInitialValues({});
     final store = SettingsStore();

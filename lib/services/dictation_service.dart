@@ -24,11 +24,11 @@ class DictationService {
     this.canPaste,
     this.playgroundActive,
     this.insertPlayground,
-  }) : _transcribe = transcribe ?? _transcribeWithGemini;
+  }) : _transcribe = transcribe; // ignore: prefer_initializing_formals
   final SettingsStore settings;
   final AudioService audio;
   final DesktopService desktop;
-  final Transcribe _transcribe;
+  final Transcribe? _transcribe;
   final bool Function()? canPaste;
   final bool Function()? playgroundActive;
   final bool Function(String)? insertPlayground;
@@ -43,9 +43,11 @@ class DictationService {
     DictationLanguageMode mode,
     String target,
     String model,
+    String? systemPrompt,
   ) => GeminiDictationService(
     key,
     model: model,
+    systemPrompt: systemPrompt,
   ).transcribe(file, duration, mode: mode, targetLanguage: target);
 
   Future<void> start({bool translate = false}) async {
@@ -78,7 +80,18 @@ class DictationService {
               (m) => m.name == settings.language(),
               orElse: () => DictationLanguageMode.auto,
             );
-      final text = await _transcribe(
+      final transcribe =
+          _transcribe ??
+          (file, duration, key, mode, target, model) => _transcribeWithGemini(
+            file,
+            duration,
+            key,
+            mode,
+            target,
+            model,
+            settings.systemPrompt(),
+          );
+      final text = await transcribe(
         recording.file,
         recording.durationSec,
         await settings.apiKey(),
