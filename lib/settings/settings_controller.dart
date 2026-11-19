@@ -50,6 +50,7 @@ class SettingsController extends VeloraController {
   List<HistoryEntry> history = [];
   String? device;
   String language = 'auto';
+  bool typeText = false;
   String shortcut = 'Ctrl+Space';
   String translationShortcut = 'Ctrl+Alt+Space';
   String keyStatus = 'Key missing';
@@ -98,6 +99,7 @@ class SettingsController extends VeloraController {
         systemPrompt.text =
             store.systemPrompt() ?? kDictationSystemInstruction.trim();
         language = store.language();
+        typeText = store.typeText();
         shortcut = store.shortcut();
         translationShortcut = store.translationShortcut();
         this.devices = devices;
@@ -308,6 +310,11 @@ class SettingsController extends VeloraController {
       () => systemPrompt.text =
           store.systemPrompt() ?? kDictationSystemInstruction.trim(),
     );
+  }
+
+  Future<void> setTypeText(bool value) async {
+    await store.setTypeText(value);
+    _updateState(() => typeText = value);
   }
 
   Future<void> resetSystemPrompt() async {

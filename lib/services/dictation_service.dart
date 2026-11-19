@@ -122,7 +122,11 @@ class DictationService {
             'No active window. The transcript is on the clipboard.',
           );
         }
-        await desktop.paste(text, target);
+        if (settings.typeText()) {
+          await desktop.typeText(text, target);
+        } else {
+          await desktop.paste(text, target);
+        }
       }
     } finally {
       if (await recording.file.exists()) await recording.file.delete();

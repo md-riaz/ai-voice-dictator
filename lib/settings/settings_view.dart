@@ -605,6 +605,23 @@ class _SettingsViewState extends State<SettingsView> {
                               VeloraCard(
                                 elevated: false,
                                 color: colors.surfaceContainerLowest,
+                                child: SwitchListTile(
+                                  title: const Text(
+                                    'Type text instead of pasting',
+                                  ),
+                                  subtitle: const Text(
+                                    'Try this for fields that block paste. Check the focused field; typing and paste cannot be verified in every app.',
+                                  ),
+                                  value: controller.typeText,
+                                  onChanged: (value) =>
+                                      controller.setTypeText(value),
+                                ),
+                              ),
+                            if (_page == 0) const SizedBox(height: 16),
+                            if (_page == 0)
+                              VeloraCard(
+                                elevated: false,
+                                color: colors.surfaceContainerLowest,
                                 padding: const EdgeInsets.all(24),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,

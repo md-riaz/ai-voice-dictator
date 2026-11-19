@@ -32,6 +32,7 @@ class FlowAudio implements AudioService {
 class FlowDesktop implements DesktopService {
   int target = 123;
   String? pasted;
+  String? typed;
   String? copied;
   @override
   Future<void> copyTranscript(String text) async => copied = text;
@@ -41,6 +42,12 @@ class FlowDesktop implements DesktopService {
   Future<void> paste(String text, int target) async {
     expect(target, this.target);
     pasted = text;
+  }
+
+  @override
+  Future<void> typeText(String text, int target) async {
+    expect(target, this.target);
+    typed = text;
   }
 
   @override
@@ -128,6 +135,15 @@ void main() {
     expect(desktop.copied, 'Hello world.');
     expect((await settings.history()).single.text, 'Hello world.');
     expect(await file.exists(), false);
+  });
+  test('typing mode preserves clipboard and history without pasting', () async {
+    await settings.setTypeText(true);
+    final desktop = FlowDesktop();
+    await runFlow(desktop);
+    expect(desktop.typed, 'Hello world.');
+    expect(desktop.pasted, isNull);
+    expect(desktop.copied, 'Hello world.');
+    expect((await settings.history()).single.text, 'Hello world.');
   });
   test('pastes into the current window when target changes', () async {
     final desktop = FlowDesktop();

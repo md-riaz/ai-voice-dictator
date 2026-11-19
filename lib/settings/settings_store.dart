@@ -62,6 +62,9 @@ class SettingsStore {
   }
 
   String language() => _prefs.getString('language') ?? 'auto';
+  bool typeText() => _prefs.getBool('type_text') ?? false;
+  Future<void> setTypeText(bool value) async =>
+      _prefs.setBool('type_text', value);
   String? systemPrompt() => _prefs.getString('system_prompt');
   Future<void> setSystemPrompt(String? value) async {
     if (value == null || value.trim().isEmpty) {

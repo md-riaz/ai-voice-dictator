@@ -406,6 +406,64 @@ class DesktopService {
   Future<void> copyTranscript(String text) =>
       Clipboard.setData(ClipboardData(text: text));
 
+  Future<void> typeText(String text, int target) async {
+    if (text.isEmpty) throw StateError('No text to type.');
+    final keyState = _user32
+        .lookupFunction<Int16 Function(Int32), int Function(int)>(
+          'GetAsyncKeyState',
+        );
+    bool modifiersHeld() =>
+        [0x10, 0x11, 0x12, 0x5b, 0x5c].any((key) => (keyState(key) & 0x8000) != 0);
+    final deadline = DateTime.now().add(const Duration(seconds: 2));
+    while (modifiersHeld() && DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+    }
+    if (modifiersHeld()) {
+      throw StateError(
+        'Release the shortcut keys. The transcript is on the clipboard.',
+      );
+    }
+    final send = _user32
+        .lookupFunction<
+          Uint32 Function(Uint32, Pointer<_Input>, Int32),
+          int Function(int, Pointer<_Input>, int)
+        >('SendInput');
+    final units = text.codeUnits;
+    // shortcut: SendInput cannot confirm field acceptance; use UI Automation when reliable.
+    for (var offset = 0; offset < units.length;) {
+      if (target == 0 || captureTarget() != target) {
+        throw StateError(
+          'The target window changed. Text may be partially typed; the full transcript is on the clipboard.',
+        );
+      }
+      var count = (units.length - offset).clamp(0, 128);
+      if (offset + count < units.length &&
+          units[offset + count - 1] >= 0xd800 &&
+          units[offset + count - 1] <= 0xdbff) {
+        count--;
+      }
+      final inputs = calloc<_Input>(count * 2);
+      try {
+        for (var i = 0; i < count; i++) {
+          inputs[2 * i].type = 1;
+          inputs[2 * i].data.keyboard.scan = units[offset + i];
+          inputs[2 * i].data.keyboard.flags = 4;
+          inputs[2 * i + 1].type = 1;
+          inputs[2 * i + 1].data.keyboard.scan = units[offset + i];
+          inputs[2 * i + 1].data.keyboard.flags = 6;
+        }
+        if (send(count * 2, inputs, sizeOf<_Input>()) != count * 2) {
+          throw StateError(
+            'Windows could not type everything. Text may be partial; the full transcript is on the clipboard.',
+          );
+        }
+      } finally {
+        calloc.free(inputs);
+      }
+      offset += count;
+    }
+  }
+
   Future<void> paste(String text, int target) async {
     if (text.isEmpty) throw StateError('No text to paste.');
     final keyState = _user32
@@ -413,7 +471,7 @@ class DesktopService {
           'GetAsyncKeyState',
         );
     bool modifiersHeld() =>
-        [0x11, 0x12, 0x5b, 0x5c].any((key) => (keyState(key) & 0x8000) != 0);
+        [0x10, 0x11, 0x12, 0x5b, 0x5c].any((key) => (keyState(key) & 0x8000) != 0);
     final deadline = DateTime.now().add(const Duration(seconds: 2));
     while (modifiersHeld() && DateTime.now().isBefore(deadline)) {
       await Future<void>.delayed(const Duration(milliseconds: 30));
