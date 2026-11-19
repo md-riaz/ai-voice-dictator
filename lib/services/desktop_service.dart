@@ -36,23 +36,30 @@ class _TrayPort implements VeloraDesktopTrayPort {
       onShow: owner.onSettings,
       onQuit: owner.onExit,
     );
-    if (ready) {
-      await _tray.setMenuItems(
-        showLabel: 'Settings',
-        quitLabel: 'Exit',
-        items: [
-          VeloraTrayMenuItem(
-            id: 'pause',
-            label: 'Pause / Resume',
-            onTap: owner.onPause,
-          ),
-        ],
-        onShow: owner.onSettings,
-        onQuit: owner.onExit,
-      );
-    }
+    if (ready) await updatePaused(false);
     return ready;
   }
+
+  Future<void> updatePaused(bool paused) => _tray.setMenuItems(
+    showLabel: 'Settings',
+    quitLabel: 'Exit',
+    items: [
+      VeloraTrayMenuItem(
+        id: 'pause',
+        label: paused ? 'Resume dictation' : 'Pause dictation',
+        onTap: () {
+          final paused = owner.onPause();
+          unawaited(
+            Future<void>(() => updatePaused(paused)).catchError((Object error) {
+              debugPrint('Could not update the tray menu: $error');
+            }),
+          );
+        },
+      ),
+    ],
+    onShow: owner.onSettings,
+    onQuit: owner.onExit,
+  );
 
   @override
   Future<void> dispose() => _tray.dispose();
@@ -125,6 +132,8 @@ class DesktopService {
     required this.onSettings,
     required this.onSettingsClosed,
     required this.onPause,
+    required this.onSuspend,
+    required this.onResume,
     required this.onExit,
     this.onKeyEvent,
   });
@@ -132,7 +141,9 @@ class DesktopService {
   final VoidCallback onTranslate;
   final VoidCallback onSettings;
   final VoidCallback onSettingsClosed;
-  final VoidCallback onPause;
+  final bool Function() onPause;
+  final VoidCallback onSuspend;
+  final VoidCallback onResume;
   final VoidCallback onExit;
   final void Function(String)? onKeyEvent;
   static const _keyChannel = MethodChannel('ai_voice_dictator/keys');
@@ -149,14 +160,6 @@ class DesktopService {
   Future<void> initialize({List<String> launchArguments = const []}) async {
     if (!Platform.isWindows) throw UnsupportedError('Windows is required.');
     await windowManager.ensureInitialized();
-    _keyChannel.setMethodCallHandler((call) async {
-      onKeyEvent?.call(call.method);
-    });
-    hotkeysAvailable =
-        await _keyChannel.invokeMethod<bool>('available') == true;
-    debugPrint(
-      'Global shortcuts: ${hotkeysAvailable ? 'ready' : 'unavailable'}',
-    );
     _storage = SharedPreferencesStorageAdapter(
       await SharedPreferences.getInstance(),
     );
@@ -173,12 +176,21 @@ class DesktopService {
       tray: _TrayPort(this),
       singleInstance: WindowsSingleInstanceAdapter(),
       autoStart: NativeApiAutoStartAdapter(),
+      power: PowerStateMonitorAdapter(),
       storage: _storage,
     );
     await _desktop.initialize();
     if (!_desktop.capabilities.window || !_desktop.capabilities.tray) {
       throw StateError('Desktop window or tray could not be initialized.');
     }
+    _keyChannel.setMethodCallHandler((call) async {
+      onKeyEvent?.call(call.method);
+    });
+    hotkeysAvailable =
+        await _keyChannel.invokeMethod<bool>('available') == true;
+    debugPrint(
+      'Global shortcuts: ${hotkeysAvailable ? 'ready' : 'unavailable'}',
+    );
     _desktopEvents = _desktop.events.listen((event) {
       if (event.type == VeloraDesktopEventType.closeRequested &&
           event.data['hidden'] == true) {
@@ -186,9 +198,12 @@ class DesktopService {
         onSettingsClosed();
       }
       if (event.type == VeloraDesktopEventType.secondaryLaunch) onSettings();
+      if (event.type == VeloraDesktopEventType.suspending) onSuspend();
+      if (event.type == VeloraDesktopEventType.resumed) onResume();
     });
   }
 
+  bool get singleInstanceAvailable => _desktop.capabilities.singleInstance;
   bool get autoStartAvailable => _desktop.capabilities.autoStart;
   Future<bool> isAutoStartEnabled() => _desktop.isAutoStartEnabled();
   Future<void> setAutoStart(bool enabled) => _desktop.setAutoStart(enabled);
@@ -342,6 +357,7 @@ class DesktopService {
     await windowManager.setBackgroundColor(Colors.white);
     await windowManager.setAlwaysOnTop(false);
     await windowManager.setSkipTaskbar(false);
+    await _keyChannel.invokeMethod<void>('ensureWindowVisible');
     await windowManager.show();
     await windowManager.focus();
   }

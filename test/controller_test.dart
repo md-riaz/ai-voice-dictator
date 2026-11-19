@@ -35,7 +35,9 @@ class TestDesktop extends DesktopService {
         onTranslate: () {},
         onSettings: () {},
         onSettingsClosed: () {},
-        onPause: () {},
+        onPause: () => false,
+        onSuspend: () {},
+        onResume: () {},
         onExit: () {},
       );
   @override

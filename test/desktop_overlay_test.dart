@@ -40,7 +40,9 @@ void main() {
       onTranslate: () {},
       onSettings: () {},
       onSettingsClosed: () {},
-      onPause: () {},
+      onPause: () => false,
+      onSuspend: () {},
+      onResume: () {},
       onExit: () {},
     );
     await desktop.updateHud('writing', '', 3);

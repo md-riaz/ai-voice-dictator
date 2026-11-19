@@ -24,6 +24,9 @@ class DictationController extends VeloraController {
   bool paused = false;
   bool _busy = false;
   bool _closing = false;
+  bool _suspended = false;
+  bool _resumePending = false;
+  Future<void>? _suspendCleanup;
   Completer<void>? _operationDone;
   bool _listening = false;
   bool processing = false;
@@ -32,7 +35,7 @@ class DictationController extends VeloraController {
   Timer? _hudTimer;
 
   Future<void> handleShortcut(String event) async {
-    if (_closing) return;
+    if (_closing || _suspended) return;
     switch (event) {
       case 'holdStart':
       case 'translationStart':
@@ -67,6 +70,34 @@ class DictationController extends VeloraController {
     }
   }
 
+  Future<void> handleSuspend() async {
+    _suspended = true;
+    _resumePending = false;
+    final existing = _suspendCleanup;
+    if (existing != null) return existing;
+    final cleanup = _cancelForSuspend();
+    _suspendCleanup = cleanup;
+    try {
+      await cleanup;
+    } finally {
+      _suspendCleanup = null;
+      if (_resumePending) _suspended = false;
+    }
+  }
+
+  Future<void> _cancelForSuspend() async {
+    if (_busy && !processing) await _operationDone?.future;
+    await cancel();
+  }
+
+  void handleResume() {
+    if (_suspendCleanup != null) {
+      _resumePending = true;
+    } else {
+      _suspended = false;
+    }
+  }
+
   Future<void> cancel() async {
     if (!_listening) return;
     _listening = false;
@@ -85,6 +116,7 @@ class DictationController extends VeloraController {
 
   Future<void> toggle({bool translate = false}) async {
     if (_closing ||
+        _suspended ||
         (paused && !_listening) ||
         _busy ||
         (settingsVisible.value && !playgroundFocused && !_listening)) {

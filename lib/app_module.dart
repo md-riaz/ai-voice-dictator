@@ -41,6 +41,8 @@ class AppModule {
       onSettings: () => unawaited(controller.showSettings()),
       onSettingsClosed: () => unawaited(module.closeSettings()),
       onPause: () => controller.paused = !controller.paused,
+      onSuspend: () => unawaited(controller.handleSuspend()),
+      onResume: () => controller.handleResume(),
       onExit: () async {
         if (exiting) return;
         exiting = true;
@@ -72,10 +74,16 @@ class AppModule {
     );
     module = AppModule._(settings, desktop, controller);
     await desktop.initialize(launchArguments: launchArguments);
+    final errors = <String>[];
     if (!desktop.hotkeysAvailable) {
-      module.startupError =
-          'Global shortcuts could not be started. Restart the app.';
+      errors.add('Global shortcuts could not be started. Restart the app.');
     }
+    if (!desktop.singleInstanceAvailable) {
+      errors.add(
+        'Single-instance protection is unavailable. Avoid opening another copy.',
+      );
+    }
+    if (errors.isNotEmpty) module.startupError = errors.join('\n');
     return module;
   }
 

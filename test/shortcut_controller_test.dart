@@ -79,6 +79,63 @@ void main() {
     expect(controller.hud.value, HudState.listening);
     await controller.cancel();
   });
+  test('suspend cancels recording and blocks starts until resume', () async {
+    final service = FakeDictation();
+    final controller = DictationController(
+      service,
+      FakeSettings(),
+      FakeDesktop(),
+    );
+    await controller.handleShortcut('holdStart');
+    await controller.handleSuspend();
+    await controller.handleShortcut('holdStart');
+    expect(service.events, ['start', 'cancel']);
+    expect(controller.recording.value, false);
+    controller.handleResume();
+    await controller.handleShortcut('holdStart');
+    expect(service.events, ['start', 'cancel', 'start']);
+    await controller.cancel();
+  });
+  test('suspend during microphone startup cancels when ready', () async {
+    final service = SlowDictation();
+    final controller = DictationController(
+      service,
+      FakeSettings(),
+      FakeDesktop(),
+    );
+    final start = controller.handleShortcut('holdStart');
+    await Future<void>.delayed(Duration.zero);
+    final suspend = controller.handleSuspend();
+    service.ready.complete();
+    await start;
+    await suspend;
+    expect(service.events, ['cancel']);
+    expect(controller.recording.value, false);
+  });
+  test(
+    'resume waits for suspended startup cleanup before another start',
+    () async {
+      final service = SlowDictation();
+      final controller = DictationController(
+        service,
+        FakeSettings(),
+        FakeDesktop(),
+      );
+      final firstStart = controller.handleShortcut('holdStart');
+      await Future<void>.delayed(Duration.zero);
+      final suspend = controller.handleSuspend();
+      controller.handleResume();
+      await controller.handleShortcut('holdStart');
+      service.ready.complete();
+      await firstStart;
+      await suspend;
+      expect(service.events, ['cancel']);
+      await controller.handleShortcut('holdStart');
+      expect(controller.recording.value, true);
+      expect(service.events, ['cancel']);
+      await controller.cancel();
+    },
+  );
   test('settings allows shortcuts only while playground has focus', () async {
     final service = FakeDictation();
     final controller = DictationController(

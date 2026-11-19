@@ -18,6 +18,35 @@ bool ctrl = false, win = false, alt = false, space = false;
 bool hold_started = false, chord_used = false, recording = false;
 constexpr UINT_PTR kHoldTimer = 102;
 
+constexpr bool HasVisibleTitleBar(const RECT& window, const RECT& work) {
+  const LONG left = window.left > work.left ? window.left : work.left;
+  const LONG right = window.right < work.right ? window.right : work.right;
+  const LONG top = window.top > work.top ? window.top : work.top;
+  const LONG title_bottom = window.top + 32;
+  const LONG bottom = title_bottom < work.bottom ? title_bottom : work.bottom;
+  return right - left >= 64 && bottom - top >= 24;
+}
+
+static_assert(HasVisibleTitleBar({100, 100, 900, 700}, {0, 0, 1920, 1080}));
+static_assert(!HasVisibleTitleBar({2000, 100, 2800, 700}, {0, 0, 1920, 1080}));
+static_assert(!HasVisibleTitleBar({100, -100, 900, 500}, {0, 0, 1920, 1080}));
+
+void EnsureWindowVisible() {
+  RECT bounds;
+  if (!GetWindowRect(key_window, &bounds)) return;
+  HMONITOR monitor = MonitorFromWindow(key_window, MONITOR_DEFAULTTONEAREST);
+  MONITORINFO info = {sizeof(info)};
+  if (!monitor || !GetMonitorInfoW(monitor, &info) ||
+      HasVisibleTitleBar(bounds, info.rcWork)) return;
+  const LONG work_width = info.rcWork.right - info.rcWork.left;
+  const LONG work_height = info.rcWork.bottom - info.rcWork.top;
+  const LONG width = bounds.right - bounds.left < work_width ? bounds.right - bounds.left : work_width;
+  const LONG height = bounds.bottom - bounds.top < work_height ? bounds.bottom - bounds.top : work_height;
+  SetWindowPos(key_window, nullptr, info.rcWork.left + (work_width - width) / 2,
+               info.rcWork.top + (work_height - height) / 2, width, height,
+               SWP_NOZORDER | SWP_NOACTIVATE);
+}
+
 std::wstring Wide(const std::string& text) {
   if (text.empty()) return {};
   int size = MultiByteToWideChar(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), nullptr, 0);
@@ -177,6 +206,8 @@ bool FlutterWindow::OnCreate() {
       result->Success();
     } else if (call.method_name() == "available") {
       result->Success(flutter::EncodableValue(hook != nullptr));
+    } else if (call.method_name() == "ensureWindowVisible") {
+      EnsureWindowVisible(); result->Success();
     } else if (call.method_name() == "showHud") {
       ShowHud(); result->Success();
     } else if (call.method_name() == "hideHud") {
