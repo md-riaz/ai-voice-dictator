@@ -482,14 +482,29 @@ class _SettingsViewState extends State<SettingsView> {
                                 padding: const EdgeInsets.all(24),
                                 child: ExpansionTile(
                                   tilePadding: EdgeInsets.zero,
+                                  childrenPadding: const EdgeInsets.only(
+                                    top: 12,
+                                    bottom: 4,
+                                  ),
+                                  shape: const Border(),
+                                  collapsedShape: const Border(),
                                   leading: const Icon(Icons.tune_rounded),
                                   title: const Text('Dictation prompt'),
                                   subtitle: const Text(
                                     'View or customize how Gemini formats your speech.',
                                   ),
                                   children: [
-                                    const Text('Language mode still applies.'),
-                                    const SizedBox(height: 16),
+                                    Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        'Language mode still applies.',
+                                        style: theme.textTheme.bodySmall
+                                            ?.copyWith(
+                                          color: colors.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 14),
                                     TextField(
                                       controller: controller.systemPrompt,
                                       minLines: 6,
@@ -499,14 +514,15 @@ class _SettingsViewState extends State<SettingsView> {
                                         labelText: 'System prompt',
                                       ),
                                     ),
-                                    Wrap(
-                                      spacing: 12,
+                                    const SizedBox(height: 14),
+                                    Row(
                                       children: [
                                         VeloraButton(
                                           label: 'Save prompt',
                                           size: VeloraButtonSize.small,
                                           onPressed: _updatePrompt,
                                         ),
+                                        const SizedBox(width: 12),
                                         VeloraButton(
                                           label: 'Restore default',
                                           size: VeloraButtonSize.small,
