@@ -21,7 +21,8 @@ class FakeDictation implements DictationService {
   Future<void> start({bool translate = false}) async =>
       events.add(translate ? 'translate' : 'start');
   @override
-  Future<void> finish() async => events.add('finish');
+  Future<void> finish({void Function(String)? onChunk}) async =>
+      events.add('finish');
   @override
   Future<void> cancel() async => events.add('cancel');
   @override
