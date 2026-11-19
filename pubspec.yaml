@@ -38,17 +38,17 @@ dependencies:
   velora:
     git:
       url: https://github.com/md-riaz/velora-flutter.git
-      ref: a81685390e68958ea233798b52b61e6d66bd175f
+      ref: d744d9334cf0bf417496f162cc59af48addcc811
       path: packages/velora
   velora_ui:
     git:
       url: https://github.com/md-riaz/velora-flutter.git
-      ref: a81685390e68958ea233798b52b61e6d66bd175f
+      ref: d744d9334cf0bf417496f162cc59af48addcc811
       path: packages/velora_ui
   velora_desktop:
     git:
       url: https://github.com/md-riaz/velora-flutter.git
-      ref: a81685390e68958ea233798b52b61e6d66bd175f
+      ref: d744d9334cf0bf417496f162cc59af48addcc811
       path: packages/velora_desktop
   record: ^7.2.0
   path_provider: ^2.1.6
@@ -58,11 +58,11 @@ dependencies:
   shared_preferences: ^2.5.6
   sqflite_common_ffi: ^2.4.7
   hotkey_manager: ^0.3.0
-  tray_manager: ^0.8.3
   window_manager: ^0.6.0
   win32: ^6.4.0
   ffi: ^2.2.0
   nativeapi: ^0.5.10
+  nativeapi_flutter: ^0.5.10
 
 dev_dependencies:
   flutter_test:
@@ -78,7 +78,7 @@ dev_dependencies:
   velora_lints:
     git:
       url: https://github.com/md-riaz/velora-flutter.git
-      ref: a81685390e68958ea233798b52b61e6d66bd175f
+      ref: d744d9334cf0bf417496f162cc59af48addcc811
       path: packages/velora_lints
 
 # For information on the generic Dart part of this file, see the

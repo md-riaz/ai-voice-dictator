@@ -1,4 +1,3 @@
-// The legacy bridge retains the established desktop plugin interfaces.
 // ignore_for_file: deprecated_member_use
 import 'dart:ffi' hide Size;
 import 'dart:io';
@@ -9,24 +8,96 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hotkey_manager/hotkey_manager.dart';
 import 'package:nativeapi/nativeapi.dart' as nativeapi;
-import 'package:tray_manager/legacy.dart';
+import 'package:nativeapi_flutter/nativeapi_flutter.dart' show ImageAsset;
 import 'package:window_manager/legacy.dart';
 import 'package:velora_desktop/velora_desktop.dart';
+
+@visibleForTesting
+bool isTrayActivation(nativeapi.TrayIconEvent event) =>
+    event is nativeapi.TrayIconClickedEvent ||
+    event is nativeapi.TrayIconDoubleClickedEvent;
 
 class _TrayPort implements VeloraDesktopTrayPort {
   _TrayPort(this.owner);
   final DesktopService owner;
+  nativeapi.TrayIcon? _icon;
+  nativeapi.Menu? _menu;
+  final _items = <nativeapi.MenuItem>[];
+  final _listeners = <int>[];
+  int? _iconListener;
+
   @override
   Future<bool> setup({
     required VeloraTrayConfig config,
     required void Function() onActivate,
     required void Function() onShow,
     required void Function() onQuit,
-  }) => owner._setupTray();
+  }) async {
+    _icon = nativeapi.TrayIcon.create();
+    _menu = nativeapi.Menu.create();
+    if (_icon == null || _menu == null) {
+      await dispose();
+      return false;
+    }
+    try {
+      _icon!.icon = ImageAsset.fromAsset(config.iconAsset);
+      _icon!.setTooltip(config.tooltip ?? 'AI Voice Dictator');
+      // Tray actions must also update app state and complete shutdown cleanup.
+      for (final item in [
+        ('Settings', owner.onSettings),
+        ('Pause / Resume', owner.onPause),
+        ('Exit', owner.onExit),
+      ]) {
+        final menuItem = nativeapi.MenuItem.createWithLabelAndType(
+          item.$1,
+          nativeapi.MenuItemType.normal,
+        );
+        if (menuItem == null) {
+          await dispose();
+          return false;
+        }
+        _items.add(menuItem);
+        _listeners.add(
+          menuItem.addListener((event) {
+            if (event is nativeapi.MenuItemClickedEvent) item.$2();
+          }),
+        );
+        _menu!.addItem(menuItem);
+      }
+      _icon!.setContextMenu(_menu);
+      _icon!.setContextMenuTrigger(nativeapi.ContextMenuTrigger.rightClicked);
+      _iconListener = _icon!.addListener((event) {
+        if (isTrayActivation(event)) {
+          owner.onSettings();
+        }
+      });
+      return true;
+    } catch (_) {
+      await dispose();
+      rethrow;
+    }
+  }
+
   @override
   Future<void> dispose() async {
-    trayManager.removeListener(owner);
-    await trayManager.destroy();
+    final icon = _icon;
+    if (icon != null) {
+      if (_iconListener != null) icon.removeListener(_iconListener!);
+      icon.setContextMenu(null);
+      icon.dispose();
+    }
+    _icon = null;
+    _iconListener = null;
+    for (var i = 0; i < _items.length; i++) {
+      if (i < _listeners.length) _items[i].removeListener(_listeners[i]);
+    }
+    _menu?.dispose();
+    _menu = null;
+    for (final item in _items) {
+      item.dispose();
+    }
+    _items.clear();
+    _listeners.clear();
   }
 }
 
@@ -69,7 +140,7 @@ final class _Input extends Struct {
   external _InputUnion data;
 }
 
-class DesktopService with TrayListener {
+class DesktopService {
   DesktopService({
     required this.onHotkey,
     required this.onTranslate,
@@ -127,26 +198,6 @@ class DesktopService with TrayListener {
         onSettingsClosed();
       }
     });
-  }
-
-  Future<bool> _setupTray() async {
-    trayManager.addListener(this);
-    await trayManager.setIcon('assets/tray_icon.ico');
-    await trayManager.setToolTip('AI Voice Dictator');
-    await trayManager.setContextMenu(
-      Menu(
-        items: [
-          MenuItem(key: 'settings', label: 'Settings'),
-          MenuItem(key: 'pause', label: 'Pause / Resume'),
-          MenuItem.separator(),
-          MenuItem(key: 'exit', label: 'Exit'),
-        ],
-      ),
-    );
-    trayManager.trayIcon?.setContextMenuTrigger(
-      nativeapi.ContextMenuTrigger.rightClicked,
-    );
-    return trayManager.trayIcon != null;
   }
 
   Future<void> setRecording(bool active) =>
@@ -293,20 +344,6 @@ class DesktopService with TrayListener {
   void onWindowClose() {
     onSettingsClosed();
     _desktop.hide();
-  }
-
-  @override
-  void onTrayIconMouseDown() => onSettings();
-  @override
-  void onTrayMenuItemClick(MenuItem menuItem) {
-    switch (menuItem.key) {
-      case 'settings':
-        onSettings();
-      case 'pause':
-        onPause();
-      case 'exit':
-        onExit();
-    }
   }
 
   Future<void> dispose() async {
