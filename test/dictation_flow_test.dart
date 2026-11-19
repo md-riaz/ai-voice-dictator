@@ -81,6 +81,7 @@ void main() {
     bool Function()? playgroundActive,
     bool Function(String)? insertPlayground,
     void Function()? onTranscribe,
+    String transcript = 'Hello world.',
   }) async {
     final audio = FlowAudio(file);
     final client = MockClient((request) async {
@@ -95,7 +96,7 @@ void main() {
                   {
                     'content': {
                       'parts': [
-                        {'text': 'Hello world.'},
+                        {'text': transcript},
                       ],
                     },
                   },
@@ -144,6 +145,23 @@ void main() {
     expect(desktop.pasted, isNull);
     expect(desktop.copied, 'Hello world.');
     expect((await settings.history()).single.text, 'Hello world.');
+  });
+  test('preserves multiline text in clipboard, history, and paste', () async {
+    final desktop = FlowDesktop();
+    await runFlow(desktop, transcript: 'First line.\nSecond line.');
+    expect(desktop.pasted, 'First line.\nSecond line.');
+    expect(desktop.copied, desktop.pasted);
+    expect((await settings.history()).single.text, desktop.pasted);
+  });
+  test('typing mode keeps multiline text safe on clipboard', () async {
+    await settings.setTypeText(true);
+    final desktop = FlowDesktop();
+    await expectLater(
+      runFlow(desktop, transcript: 'First line.\nSecond line.'),
+      throwsStateError,
+    );
+    expect(desktop.typed, isNull);
+    expect(desktop.copied, 'First line.\nSecond line.');
   });
   test('pastes into the current window when target changes', () async {
     final desktop = FlowDesktop();

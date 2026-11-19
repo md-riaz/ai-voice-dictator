@@ -143,6 +143,11 @@ class DictationService {
           );
         }
         if (settings.typeText()) {
+          if (text.contains('\n') || text.contains('\r')) {
+            throw StateError(
+              'Multiline text is on the clipboard. Paste it into a multiline field, or turn off typing mode.',
+            );
+          }
           await desktop.typeText(text, target);
         } else {
           await desktop.paste(text, target);
