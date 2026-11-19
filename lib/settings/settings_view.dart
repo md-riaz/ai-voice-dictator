@@ -1271,126 +1271,142 @@ class _SettingsViewState extends State<SettingsView> {
       (max, day) => day.words > max ? day.words : max,
     );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 560;
+        final cards = [
+          _buildMetricCard(
+            theme,
+            colors,
+            icon: Icons.chat_bubble_outline_rounded,
+            value: _formatNumber(stats.totalWords),
+            label: 'Words dictated',
+            badge: '${stats.totalSessions} sessions',
+          ),
+          _buildMetricCard(
+            theme,
+            colors,
+            icon: Icons.bolt_rounded,
+            value: _formatDuration(stats.timeSaved),
+            label: 'Time saved',
+            badge: 'vs ~40 WPM typing',
+          ),
+          _buildMetricCard(
+            theme,
+            colors,
+            icon: Icons.speed_rounded,
+            value: '${stats.speakingWpm} WPM',
+            label: 'Speaking pace',
+            badge: '${stats.speedMultiplier.toStringAsFixed(1)}x faster',
+          ),
+        ];
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: _buildMetricCard(
-                theme,
-                colors,
-                icon: Icons.chat_bubble_outline_rounded,
-                value: _formatNumber(stats.totalWords),
-                label: 'Words dictated',
-                badge: '${stats.totalSessions} sessions',
+            if (isNarrow)
+              Column(
+                children: [
+                  cards[0],
+                  const SizedBox(height: 12),
+                  cards[1],
+                  const SizedBox(height: 12),
+                  cards[2],
+                ],
+              )
+            else
+              Row(
+                children: [
+                  Expanded(child: cards[0]),
+                  const SizedBox(width: 12),
+                  Expanded(child: cards[1]),
+                  const SizedBox(width: 12),
+                  Expanded(child: cards[2]),
+                ],
+              ),
+            const SizedBox(height: 16),
+            VeloraCard(
+              elevated: false,
+              color: colors.surfaceContainerLowest,
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _heading(
+                    context,
+                    Icons.bar_chart_rounded,
+                    'Words per week',
+                    'Your daily dictation volume over the last 7 days.',
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    height: 160,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        for (final day in stats.days) ...[
+                          Expanded(
+                            child: _buildBarColumn(
+                              theme,
+                              colors,
+                              day: day,
+                              maxWords: maxWords,
+                            ),
+                          ),
+                          if (day != stats.days.last) const SizedBox(width: 8),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildMetricCard(
-                theme,
-                colors,
-                icon: Icons.bolt_rounded,
-                value: _formatDuration(stats.timeSaved),
-                label: 'Time saved',
-                badge: 'vs ~40 WPM typing',
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildMetricCard(
-                theme,
-                colors,
-                icon: Icons.speed_rounded,
-                value: '${stats.speakingWpm} WPM',
-                label: 'Speaking pace',
-                badge: '${stats.speedMultiplier.toStringAsFixed(1)}x faster',
+            const SizedBox(height: 16),
+            VeloraCard(
+              elevated: false,
+              color: colors.surfaceContainerLowest,
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _heading(
+                    context,
+                    Icons.lightbulb_outline_rounded,
+                    'Productivity insights',
+                    'How voice dictation compares with keyboard typing.',
+                  ),
+                  const SizedBox(height: 16),
+                  _buildInsightRow(
+                    theme,
+                    colors,
+                    icon: Icons.timer_outlined,
+                    title: 'Total audio recorded',
+                    detail: _formatAudioTime(stats.totalDuration),
+                  ),
+                  const Divider(height: 20),
+                  _buildInsightRow(
+                    theme,
+                    colors,
+                    icon: Icons.short_text_rounded,
+                    title: 'Average dictation size',
+                    detail:
+                        '${(stats.totalWords / (stats.totalSessions == 0 ? 1 : stats.totalSessions)).round()} words / session',
+                  ),
+                  const Divider(height: 20),
+                  _buildInsightRow(
+                    theme,
+                    colors,
+                    icon: Icons.info_outline_rounded,
+                    title: 'Time saved calculation',
+                    detail:
+                        'Compares speaking pace against average typing speed (~40 WPM). Dictating at ${stats.speakingWpm > 0 ? stats.speakingWpm : 140} WPM is roughly ${stats.speedMultiplier > 1 ? stats.speedMultiplier.toStringAsFixed(1) : '3.5'}x faster than typing.',
+                  ),
+                ],
               ),
             ),
           ],
-        ),
-        const SizedBox(height: 16),
-        VeloraCard(
-          elevated: false,
-          color: colors.surfaceContainerLowest,
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _heading(
-                context,
-                Icons.bar_chart_rounded,
-                'Words per week',
-                'Your daily dictation volume over the last 7 days.',
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                height: 160,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    for (final day in stats.days) ...[
-                      Expanded(
-                        child: _buildBarColumn(
-                          theme,
-                          colors,
-                          day: day,
-                          maxWords: maxWords,
-                        ),
-                      ),
-                      if (day != stats.days.last) const SizedBox(width: 8),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        VeloraCard(
-          elevated: false,
-          color: colors.surfaceContainerLowest,
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _heading(
-                context,
-                Icons.lightbulb_outline_rounded,
-                'Productivity insights',
-                'How voice dictation compares with keyboard typing.',
-              ),
-              const SizedBox(height: 16),
-              _buildInsightRow(
-                theme,
-                colors,
-                icon: Icons.timer_outlined,
-                title: 'Total audio recorded',
-                detail: _formatAudioTime(stats.totalDuration),
-              ),
-              const Divider(height: 20),
-              _buildInsightRow(
-                theme,
-                colors,
-                icon: Icons.short_text_rounded,
-                title: 'Average dictation size',
-                detail:
-                    '${(stats.totalWords / (stats.totalSessions == 0 ? 1 : stats.totalSessions)).round()} words / session',
-              ),
-              const Divider(height: 20),
-              _buildInsightRow(
-                theme,
-                colors,
-                icon: Icons.info_outline_rounded,
-                title: 'Time saved calculation',
-                detail:
-                    'Compares speaking pace against average typing speed (~40 WPM). Dictating at ${stats.speakingWpm > 0 ? stats.speakingWpm : 140} WPM is roughly ${stats.speedMultiplier > 1 ? stats.speedMultiplier.toStringAsFixed(1) : '3.5'}x faster than typing.',
-              ),
-            ],
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -1405,33 +1421,44 @@ class _SettingsViewState extends State<SettingsView> {
     return VeloraCard(
       elevated: false,
       color: colors.surfaceContainerLowest,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Icon(icon, size: 20, color: colors.primary),
-              const Spacer(),
-              Text(
-                badge,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: colors.onSurfaceVariant,
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  badge,
+                  textAlign: TextAlign.end,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: colors.onSurface,
+          const SizedBox(height: 10),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: colors.onSurface,
+              ),
             ),
           ),
           const SizedBox(height: 4),
           Text(
             label,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
             style: theme.textTheme.bodySmall?.copyWith(
               color: colors.onSurfaceVariant,
             ),
