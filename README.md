@@ -16,17 +16,21 @@ Get the Windows x64 setup executable from [Releases](https://github.com/md-riaz/
 
 ## Build
 
-Install Flutter 3.47 or newer, Visual Studio with the Desktop development with C++ workload, and the Windows SDK. Run:
+On Windows, install Flutter 3.47.9 (the version used by the release workflow), Visual Studio with the **Desktop development with C++** workload, and the Windows SDK. From the repository root, run:
 
 ```powershell
 flutter pub get
-flutter test
-flutter analyze
+flutter analyze --no-pub
+flutter test --no-pub
 dart run custom_lint
-flutter build windows
+flutter run -d windows --no-pub
 ```
 
-The application executable and required runtime files are in `build/windows/x64/runner/Release/`. Distribute the entire directory.
+To make a release build, run `flutter build windows --release`. The application executable and required runtime files are in `build/windows/x64/runner/Release/`. Distribute the entire directory. To build the installer, use the release workflow described below.
+
+Automated tests use test doubles for Gemini and do not need an API key. A live dictation test needs a Gemini API key configured in the app, a microphone, network access, and permission for desktop apps to use the microphone. Avoid sharing keys, private transcripts, or recordings in logs, issues, or screenshots.
+
+The app's Dart entry point is `lib/main.dart`; `lib/dictation_controller.dart` coordinates dictation, `lib/services/` contains audio, Gemini, and desktop integrations, and `lib/settings/` contains the setup and playground UI. The Windows shortcut hook and overlay live in `windows/runner/flutter_window.cpp`. See [AGENTS.md](AGENTS.md) for implementation and verification guidance.
 
 To publish a new Windows release, update `version` in `pubspec.yaml`, push the change, and run **Windows release** from the repository's Actions tab. The workflow uses the version before the `+` build number as the Git tag and creates an installer; existing tags are rejected.
 

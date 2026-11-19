@@ -264,6 +264,18 @@ void main() {
     );
     await tester.pumpAndSettle();
     final field = find.byKey(const ValueKey('dictation-playground'));
+    final statusSemantics = tester.widget<Semantics>(
+      find
+          .ancestor(
+            of: find.text('Ready'),
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is Semantics && widget.properties.liveRegion == true,
+            ),
+          )
+          .first,
+    );
+    expect(statusSemantics.properties.liveRegion, true);
     await tester.scrollUntilVisible(
       field,
       250,

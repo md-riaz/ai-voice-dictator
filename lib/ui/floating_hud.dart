@@ -21,18 +21,18 @@ class FloatingHudOverlay extends StatelessWidget {
       HudState.preparing => (
         Colors.amberAccent,
         Icons.mic_none,
-        'Preparing microphone… Please wait',
+        'Please wait before speaking…',
       ),
-      HudState.listening => (Colors.redAccent, Icons.mic, 'Listening...'),
+      HudState.listening => (Colors.redAccent, Icons.mic, 'Speak now'),
       HudState.writing => (
         Colors.cyanAccent,
         Icons.hourglass_top_rounded,
-        'Writing...',
+        'Turning speech into text…',
       ),
       HudState.success => (
         Colors.greenAccent,
         Icons.check_circle_rounded,
-        'Inserted!',
+        'Done',
       ),
       HudState.error => (
         Colors.amberAccent,

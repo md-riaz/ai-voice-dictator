@@ -241,9 +241,12 @@ class _SettingsViewState extends State<SettingsView> {
                             ),
                             const SizedBox(height: 24),
                             if (controller.pageError != null) ...[
-                              VeloraAlert(
-                                message: controller.pageError!,
-                                status: VeloraStatus.error,
+                              Semantics(
+                                liveRegion: true,
+                                child: VeloraAlert(
+                                  message: controller.pageError!,
+                                  status: VeloraStatus.error,
+                                ),
                               ),
                               const SizedBox(height: 16),
                             ],
@@ -438,7 +441,7 @@ class _SettingsViewState extends State<SettingsView> {
                                     ),
                                     const SizedBox(height: 8),
                                     const Text(
-                                      'Click in the box, hold Ctrl + Win, wait for Listening, speak, then release.',
+                                      'Click in the box, hold Ctrl + Win, wait for “Speak now”, then speak and release.',
                                     ),
                                     const SizedBox(height: 8),
                                     Text(
@@ -470,33 +473,36 @@ class _SettingsViewState extends State<SettingsView> {
                                     if (widget.dictation != null)
                                       vx.Obx(() {
                                         final dictation = widget.dictation!;
-                                        final status = switch (dictation
-                                            .hud
-                                            .value) {
-                                          HudState.preparing =>
-                                            'Preparing microphone… Please wait',
-                                          HudState.listening => 'Listening…',
-                                          HudState.writing => 'Writing…',
-                                          HudState.success => 'Inserted',
-                                          HudState.error =>
-                                            dictation.message.value,
-                                        };
+                                        final status =
+                                            switch (dictation.hud.value) {
+                                              HudState.preparing =>
+                                                'Please wait before speaking…',
+                                              HudState.listening => 'Speak now',
+                                              HudState.writing =>
+                                                'Turning speech into text…',
+                                              HudState.success => 'Done',
+                                              HudState.error =>
+                                                dictation.message.value,
+                                            };
                                         return Padding(
                                           padding: const EdgeInsets.only(
                                             top: 8,
                                           ),
-                                          child: Text(
-                                            dictation.recording.value ||
-                                                    dictation.hud.value ==
-                                                        HudState.preparing ||
-                                                    dictation.hud.value ==
-                                                        HudState.writing ||
-                                                    dictation.hud.value ==
-                                                        HudState.error ||
-                                                    dictation.hud.value ==
-                                                        HudState.success
-                                                ? status
-                                                : 'Ready',
+                                          child: Semantics(
+                                            liveRegion: true,
+                                            child: Text(
+                                              dictation.recording.value ||
+                                                      dictation.hud.value ==
+                                                          HudState.preparing ||
+                                                      dictation.hud.value ==
+                                                          HudState.writing ||
+                                                      dictation.hud.value ==
+                                                          HudState.error ||
+                                                      dictation.hud.value ==
+                                                          HudState.success
+                                                  ? status
+                                                  : 'Ready',
+                                            ),
                                           ),
                                         );
                                       }),
@@ -531,7 +537,7 @@ class _SettingsViewState extends State<SettingsView> {
                                       'Ctrl + Win + Space  ·  Press to start or finish hands-free',
                                     ),
                                     const SizedBox(height: 8),
-                                    const Text('Esc  ·  Cancel recording'),
+                                    const Text('Esc  ·  Cancel dictation'),
                                   ],
                                 ),
                               ),
@@ -747,9 +753,32 @@ class _SettingsViewState extends State<SettingsView> {
                                         trailing: IconButton(
                                           tooltip: 'Copy',
                                           icon: const Icon(Icons.copy),
-                                          onPressed: () => Clipboard.setData(
-                                            ClipboardData(text: entry.text),
-                                          ),
+                                          onPressed: () async {
+                                            try {
+                                              await Clipboard.setData(
+                                                ClipboardData(text: entry.text),
+                                              );
+                                              if (!context.mounted) return;
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text(
+                                                        'Copied to clipboard.',
+                                                      ),
+                                                    ),
+                                                  );
+                                            } catch (_) {
+                                              if (!context.mounted) return;
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text(
+                                                        'Could not copy to clipboard.',
+                                                      ),
+                                                    ),
+                                                  );
+                                            }
+                                          },
                                         ),
                                       ),
                                   ],

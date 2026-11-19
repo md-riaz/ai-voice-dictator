@@ -11,7 +11,7 @@ std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> keys;
 HHOOK hook = nullptr;
 HWND key_window = nullptr;
 HWND hud_window = nullptr;
-std::wstring hud_text = L"Listening...";
+std::wstring hud_text = L"Please wait before speaking...";
 COLORREF hud_color = RGB(255, 104, 104);
 bool hud_success = false;
 bool ctrl = false, win = false, alt = false, space = false;
@@ -224,11 +224,11 @@ bool FlutterWindow::OnCreate() {
         const int32_t* n = seconds == args->end() ? nullptr : std::get_if<int32_t>(&seconds->second);
         hud_success = s && *s == "success";
         if (s && *s == "preparing") {
-          hud_text = L"Preparing microphone... Please wait"; hud_color = RGB(255, 194, 90);
+          hud_text = L"Please wait before speaking..."; hud_color = RGB(255, 194, 90);
         } else if (s && *s == "listening") {
-          hud_text = L"Listening...  " + std::to_wstring(n ? *n / 60 : 0) + L":" + ((n && *n % 60 >= 10) ? L"" : L"0") + std::to_wstring(n ? *n % 60 : 0);
+          hud_text = L"Speak now  " + std::to_wstring(n ? *n / 60 : 0) + L":" + ((n && *n % 60 >= 10) ? L"" : L"0") + std::to_wstring(n ? *n % 60 : 0);
           hud_color = RGB(255, 104, 104);
-        } else if (s && *s == "writing") { hud_text = L"Writing..."; hud_color = RGB(101, 210, 238); }
+        } else if (s && *s == "writing") { hud_text = L"Turning speech into text..."; hud_color = RGB(101, 210, 238); }
         else if (s && *s == "success") { hud_text = L"Done"; hud_color = RGB(105, 220, 150); }
         else if (s && *s == "error") { hud_text = m && !m->empty() ? Wide(*m) : L"Error occurred"; hud_color = RGB(255, 194, 90); }
         if (hud_window) InvalidateRect(hud_window, nullptr, TRUE);

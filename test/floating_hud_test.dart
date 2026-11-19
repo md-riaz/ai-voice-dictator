@@ -3,6 +3,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('shows clear guidance through dictation', (tester) async {
+    for (final (state, text) in [
+      (HudState.preparing, 'Please wait before speaking…'),
+      (HudState.writing, 'Turning speech into text…'),
+      (HudState.success, 'Done'),
+    ]) {
+      await tester.pumpWidget(
+        MaterialApp(home: FloatingHudOverlay(state: state)),
+      );
+      expect(find.text(text), findsOneWidget);
+    }
+  });
+
   testWidgets('shows listening duration across minutes', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
@@ -12,7 +25,7 @@ void main() {
         ),
       ),
     );
-    expect(find.text('Listening...'), findsOneWidget);
+    expect(find.text('Speak now'), findsOneWidget);
     expect(find.text('1:05'), findsOneWidget);
   });
   testWidgets('shows the supplied error', (tester) async {
