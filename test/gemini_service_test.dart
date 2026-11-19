@@ -24,6 +24,7 @@ void main() {
       expect(prompt, contains('নতুন প্যারা'));
       expect(prompt, contains('1. Check the logs\n2. Restart the server'));
       expect(prompt, contains('Hi team,\n\nThe migration failed.'));
+      expect(prompt, contains('Format autonomously: speakers speak naturally'));
     }
   });
 
