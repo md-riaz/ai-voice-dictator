@@ -48,6 +48,7 @@ class SettingsController extends VeloraController {
   StreamSubscription<Amplitude>? amplitude;
   List<InputDevice> devices = [];
   List<HistoryEntry> history = [];
+  DictationStats stats = const DictationStats.empty();
   int historyRetention = 0;
   bool historyHasMore = false;
   bool historyLoadingMore = false;
@@ -93,6 +94,12 @@ class SettingsController extends VeloraController {
         history = [];
         historyUnavailable = true;
       }
+      DictationStats stats;
+      try {
+        stats = await store.stats().timeout(const Duration(seconds: 4));
+      } catch (_) {
+        stats = const DictationStats.empty();
+      }
       bool? autoStart;
       if (getAutoStart != null && onAutoStartChanged != null) {
         try {
@@ -119,6 +126,7 @@ class SettingsController extends VeloraController {
         final savedDevice = store.deviceId();
         device = savedDevice;
         this.history = history;
+        this.stats = stats;
         historyRetention = store.historyRetention();
         historyHasMore = history.length == 50 && history.last.id != null;
         if (historyUnavailable) pageError = 'Could not load dictation history.';
@@ -151,14 +159,25 @@ class SettingsController extends VeloraController {
     final version = ++_historyVersion;
     try {
       final entries = await store.history();
+      final currentStats = await store.stats();
       if (version != _historyVersion) return;
       _updateState(() {
         history = entries;
+        stats = currentStats;
         historyHasMore = entries.length == 50 && entries.last.id != null;
         historyLoadingMore = false;
       });
     } catch (_) {
       _updateState(() => pageError = 'Could not load dictation history.');
+    }
+  }
+
+  Future<void> refreshStats() async {
+    try {
+      final currentStats = await store.stats();
+      _updateState(() => stats = currentStats);
+    } catch (_) {
+      // Retain current stats if refresh fails.
     }
   }
 

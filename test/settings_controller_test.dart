@@ -89,6 +89,31 @@ class FakeSettings implements SettingsStore {
                 duration: const Duration(seconds: 1),
               ),
             ];
+  DictationStats? testStats;
+  @override
+  Future<DictationStats> stats({int daysCount = 7}) async {
+    if (testStats != null) return testStats!;
+    final entries = await history();
+    var words = 0;
+    var duration = Duration.zero;
+    for (final e in entries) {
+      words += e.wordCount;
+      duration += e.duration;
+    }
+    return DictationStats(
+      totalWords: words,
+      totalDuration: duration,
+      totalSessions: entries.length,
+      days: List.generate(
+        daysCount,
+        (i) => DayStat(
+          date: DateTime.now().subtract(Duration(days: daysCount - 1 - i)),
+          words: i == daysCount - 1 ? words : 0,
+          duration: i == daysCount - 1 ? duration : Duration.zero,
+        ),
+      ),
+    );
+  }
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -400,7 +425,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    for (final page in ['History', 'Setup']) {
+    for (final page in ['Stats', 'History', 'Setup']) {
       await tester.tap(find.text(page));
       await tester.pumpAndSettle();
       expect(find.byIcon(Icons.close_rounded), findsNothing);
@@ -472,6 +497,32 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Recent dictations'), findsOneWidget);
     expect(find.text('Hello'), findsOneWidget);
+    await tester.tap(find.text('Stats'));
+    await tester.pumpAndSettle();
+    expect(find.text('Dictation statistics'), findsOneWidget);
+    expect(find.text('Words dictated'), findsOneWidget);
+    expect(find.text('Time saved'), findsOneWidget);
+    expect(find.text('Speaking pace'), findsOneWidget);
+    expect(find.text('Words per week'), findsOneWidget);
+    expect(find.text('Productivity insights'), findsOneWidget);
+  });
+  testWidgets('stats view displays empty state when no history exists', (tester) async {
+    final store = FakeSettings()..testHistory = [];
+    final controller = SettingsController(
+      store: store,
+      service: FakeSettingsService(),
+      onShortcutChanged: (_, _, _) async {},
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ui.VeloraTheme.light(),
+        home: SettingsView(controller: controller),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Stats'));
+    await tester.pumpAndSettle();
+    expect(find.text('No dictation stats yet'), findsOneWidget);
   });
   testWidgets('clear history requires confirmation', (tester) async {
     final store = FakeSettings();

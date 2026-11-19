@@ -197,4 +197,37 @@ void main() {
     await db.close();
     await store.close();
   });
+  test('computes accurate dictation stats, time saved and day buckets', () async {
+    SharedPreferences.setMockInitialValues({});
+    sqfliteFfiInit();
+    final dir = await Directory.systemTemp.createTemp('history_stats_');
+    addTearDown(() => dir.delete(recursive: true));
+    final path = '${dir.path}/history.sqlite';
+    final store = SettingsStore();
+    await store.initialize(databasePath: path);
+
+    var stats = await store.stats();
+    expect(stats.totalWords, 0);
+    expect(stats.totalDuration, Duration.zero);
+    expect(stats.totalSessions, 0);
+    expect(stats.timeSaved, Duration.zero);
+    expect(stats.speakingWpm, 0);
+    expect(stats.speedMultiplier, 1.0);
+    expect(stats.days.length, 7);
+
+    final sampleText = List.generate(80, (i) => 'word$i').join(' ');
+    await store.addHistory(sampleText, const Duration(seconds: 30));
+
+    stats = await store.stats();
+    expect(stats.totalWords, 80);
+    expect(stats.totalDuration, const Duration(seconds: 30));
+    expect(stats.totalSessions, 1);
+    expect(stats.timeSaved.inSeconds, 90);
+    expect(stats.speakingWpm, 160);
+    expect(stats.speedMultiplier, 4.0);
+    expect(stats.days.last.words, 80);
+    expect(stats.days.last.duration, const Duration(seconds: 30));
+
+    await store.close();
+  });
 }

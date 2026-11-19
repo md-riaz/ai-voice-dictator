@@ -126,7 +126,7 @@ class _SettingsViewState extends State<SettingsView> {
     if (mounted) {
       setState(() {
         if (!controller.pageLoading && !_setupPageChosen) {
-          _page = controller.needsSetup ? 1 : 0;
+          _page = controller.needsSetup ? 3 : 0;
           _wasSetupRequired = controller.needsSetup;
           _setupPageChosen = true;
         } else if (_wasSetupRequired && !controller.needsSetup) {
@@ -211,17 +211,22 @@ class _SettingsViewState extends State<SettingsView> {
                           label: 'Home',
                         ),
                         VeloraNavDestination(
-                          icon: Icons.tune_rounded,
-                          label: 'Setup',
+                          icon: Icons.insights_rounded,
+                          label: 'Stats',
                         ),
                         VeloraNavDestination(
                           icon: Icons.history_rounded,
                           label: 'History',
                         ),
+                        VeloraNavDestination(
+                          icon: Icons.tune_rounded,
+                          label: 'Setup',
+                        ),
                       ],
                       selectedIndex: _page,
                       onDestinationSelected: (value) {
-                        if (controller.needsSetup && value != 1) return;
+                        if (controller.needsSetup && value != 3) return;
+                        if (value == 1) controller.refreshStats();
                         if (value == 2) controller.refreshHistory();
                         FocusScope.of(context).unfocus();
                         setState(() => _page = value);
@@ -249,8 +254,9 @@ class _SettingsViewState extends State<SettingsView> {
                                       Text(
                                         [
                                           'Your workspace',
-                                          'Connection & audio',
+                                          'Dictation statistics',
                                           'Dictation history',
+                                          'Connection & audio',
                                         ][_page],
                                         style: theme.textTheme.headlineSmall
                                             ?.copyWith(
@@ -261,8 +267,9 @@ class _SettingsViewState extends State<SettingsView> {
                                       Text(
                                         [
                                           'Speak naturally, wherever you work.',
-                                          'Manage your connection and microphone.',
+                                          'See how much time voice dictation saves you.',
                                           'Your recent dictations, saved on this device.',
+                                          'Manage your connection and microphone.',
                                         ][_page],
                                         style: theme.textTheme.bodyMedium
                                             ?.copyWith(
@@ -285,7 +292,7 @@ class _SettingsViewState extends State<SettingsView> {
                               ),
                               const SizedBox(height: 16),
                             ],
-                            if (_page == 1)
+                            if (_page == 3)
                               VeloraCard(
                                 elevated: false,
                                 color: colors.surfaceContainerLowest,
@@ -387,8 +394,8 @@ class _SettingsViewState extends State<SettingsView> {
                                   ],
                                 ),
                               ),
-                            if (_page == 1) const SizedBox(height: 16),
-                            if (_page == 1)
+                            if (_page == 3) const SizedBox(height: 16),
+                            if (_page == 3)
                               VeloraCard(
                                 elevated: false,
                                 color: colors.surfaceContainerLowest,
@@ -474,68 +481,74 @@ class _SettingsViewState extends State<SettingsView> {
                                   ],
                                 ),
                               ),
-                            if (_page == 1) const SizedBox(height: 16),
-                            if (_page == 1)
+                            if (_page == 3) const SizedBox(height: 16),
+                            if (_page == 3)
                               VeloraCard(
                                 elevated: false,
                                 color: colors.surfaceContainerLowest,
                                 padding: const EdgeInsets.all(24),
-                                child: ExpansionTile(
-                                  tilePadding: EdgeInsets.zero,
-                                  childrenPadding: const EdgeInsets.only(
-                                    top: 12,
-                                    bottom: 4,
+                                child: Theme(
+                                  data: theme.copyWith(
+                                    dividerColor: Colors.transparent,
                                   ),
-                                  shape: const Border(),
-                                  collapsedShape: const Border(),
-                                  leading: const Icon(Icons.tune_rounded),
-                                  title: const Text('Dictation prompt'),
-                                  subtitle: const Text(
-                                    'View or customize how Gemini formats your speech.',
-                                  ),
-                                  children: [
-                                    Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: Text(
-                                        'Language mode still applies.',
-                                        style: theme.textTheme.bodySmall
-                                            ?.copyWith(
-                                          color: colors.onSurfaceVariant,
+                                  child: ExpansionTile(
+                                    tilePadding: EdgeInsets.zero,
+                                    childrenPadding: const EdgeInsets.only(
+                                      top: 12,
+                                      bottom: 4,
+                                    ),
+                                    shape: const Border(),
+                                    collapsedShape: const Border(),
+                                    leading: const Icon(Icons.tune_rounded),
+                                    title: const Text('Dictation prompt'),
+                                    subtitle: const Text(
+                                      'View or customize how Gemini formats your speech.',
+                                    ),
+                                    children: [
+                                      Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: Text(
+                                          'Language mode still applies.',
+                                          style: theme.textTheme.bodySmall
+                                              ?.copyWith(
+                                            color: colors.onSurfaceVariant,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                    const SizedBox(height: 14),
-                                    TextField(
-                                      controller: controller.systemPrompt,
-                                      minLines: 6,
-                                      maxLines: 12,
-                                      maxLength: 5000,
-                                      decoration: const InputDecoration(
-                                        labelText: 'System prompt',
+                                      const SizedBox(height: 14),
+                                      TextField(
+                                        controller: controller.systemPrompt,
+                                        minLines: 6,
+                                        maxLines: 12,
+                                        maxLength: 5000,
+                                        decoration: const InputDecoration(
+                                          labelText: 'System prompt',
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(height: 14),
-                                    Row(
-                                      children: [
-                                        VeloraButton(
-                                          label: 'Save prompt',
-                                          size: VeloraButtonSize.small,
-                                          onPressed: _updatePrompt,
-                                        ),
-                                        const SizedBox(width: 12),
-                                        VeloraButton(
-                                          label: 'Restore default',
-                                          size: VeloraButtonSize.small,
-                                          variant: VeloraButtonVariant.outline,
-                                          onPressed: () =>
-                                              _updatePrompt(reset: true),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
+                                      const SizedBox(height: 14),
+                                      Row(
+                                        children: [
+                                          VeloraButton(
+                                            label: 'Save prompt',
+                                            size: VeloraButtonSize.small,
+                                            onPressed: _updatePrompt,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          VeloraButton(
+                                            label: 'Restore default',
+                                            size: VeloraButtonSize.small,
+                                            variant:
+                                                VeloraButtonVariant.outline,
+                                            onPressed: () =>
+                                                _updatePrompt(reset: true),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                            if (_page == 1) const SizedBox(height: 16),
+                            if (_page == 3) const SizedBox(height: 16),
                             if (_page == 0)
                               VeloraCard(
                                 elevated: false,
@@ -843,7 +856,7 @@ class _SettingsViewState extends State<SettingsView> {
                                 ),
                               ),
                             if (_page == 0) const SizedBox(height: 16),
-                            if (_page == 1)
+                            if (_page == 3)
                               VeloraCard(
                                 elevated: false,
                                 color: colors.surfaceContainerLowest,
@@ -933,8 +946,8 @@ class _SettingsViewState extends State<SettingsView> {
                                   ],
                                 ),
                               ),
-                            if (_page == 1) const SizedBox(height: 16),
-                            if (_page == 1)
+                            if (_page == 3) const SizedBox(height: 16),
+                            if (_page == 3)
                               VeloraCard(
                                 elevated: false,
                                 color: colors.surfaceContainerLowest,
@@ -955,6 +968,9 @@ class _SettingsViewState extends State<SettingsView> {
                                       : controller.setAutoStart,
                                 ),
                               ),
+                            if (_page == 3) const SizedBox(height: 16),
+                            if (_page == 1)
+                              _buildStatsSection(context, theme, colors),
                             if (_page == 1) const SizedBox(height: 16),
                             if (_page == 2)
                               VeloraCard(
@@ -1204,5 +1220,348 @@ class _SettingsViewState extends State<SettingsView> {
         ),
       ],
     );
+  }
+
+  Widget _buildStatsSection(
+    BuildContext context,
+    ThemeData theme,
+    ColorScheme colors,
+  ) {
+    final stats = controller.stats;
+    if (stats.totalSessions == 0) {
+      return VeloraCard(
+        elevated: false,
+        color: colors.surfaceContainerLowest,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.insights_rounded,
+                size: 48,
+                color: colors.primary,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'No dictation stats yet',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 440),
+                child: Text(
+                  'Your stats show up here as you dictate. Speak naturally in any app using your shortcut or test in the playground.',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final maxWords = stats.days.fold<int>(
+      1,
+      (max, day) => day.words > max ? day.words : max,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _buildMetricCard(
+                theme,
+                colors,
+                icon: Icons.chat_bubble_outline_rounded,
+                value: _formatNumber(stats.totalWords),
+                label: 'Words dictated',
+                badge: '${stats.totalSessions} sessions',
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildMetricCard(
+                theme,
+                colors,
+                icon: Icons.bolt_rounded,
+                value: _formatDuration(stats.timeSaved),
+                label: 'Time saved',
+                badge: 'vs ~40 WPM typing',
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildMetricCard(
+                theme,
+                colors,
+                icon: Icons.speed_rounded,
+                value: '${stats.speakingWpm} WPM',
+                label: 'Speaking pace',
+                badge: '${stats.speedMultiplier.toStringAsFixed(1)}x faster',
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        VeloraCard(
+          elevated: false,
+          color: colors.surfaceContainerLowest,
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _heading(
+                context,
+                Icons.bar_chart_rounded,
+                'Words per week',
+                'Your daily dictation volume over the last 7 days.',
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                height: 160,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    for (final day in stats.days) ...[
+                      Expanded(
+                        child: _buildBarColumn(
+                          theme,
+                          colors,
+                          day: day,
+                          maxWords: maxWords,
+                        ),
+                      ),
+                      if (day != stats.days.last) const SizedBox(width: 8),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        VeloraCard(
+          elevated: false,
+          color: colors.surfaceContainerLowest,
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _heading(
+                context,
+                Icons.lightbulb_outline_rounded,
+                'Productivity insights',
+                'How voice dictation compares with keyboard typing.',
+              ),
+              const SizedBox(height: 16),
+              _buildInsightRow(
+                theme,
+                colors,
+                icon: Icons.timer_outlined,
+                title: 'Total audio recorded',
+                detail: _formatAudioTime(stats.totalDuration),
+              ),
+              const Divider(height: 20),
+              _buildInsightRow(
+                theme,
+                colors,
+                icon: Icons.short_text_rounded,
+                title: 'Average dictation size',
+                detail:
+                    '${(stats.totalWords / (stats.totalSessions == 0 ? 1 : stats.totalSessions)).round()} words / session',
+              ),
+              const Divider(height: 20),
+              _buildInsightRow(
+                theme,
+                colors,
+                icon: Icons.info_outline_rounded,
+                title: 'Time saved calculation',
+                detail:
+                    'Compares speaking pace against average typing speed (~40 WPM). Dictating at ${stats.speakingWpm > 0 ? stats.speakingWpm : 140} WPM is roughly ${stats.speedMultiplier > 1 ? stats.speedMultiplier.toStringAsFixed(1) : '3.5'}x faster than typing.',
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMetricCard(
+    ThemeData theme,
+    ColorScheme colors, {
+    required IconData icon,
+    required String value,
+    required String label,
+    required String badge,
+  }) {
+    return VeloraCard(
+      elevated: false,
+      color: colors.surfaceContainerLowest,
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 20, color: colors.primary),
+              const Spacer(),
+              Text(
+                badge,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: colors.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            value,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: colors.onSurface,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colors.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBarColumn(
+    ThemeData theme,
+    ColorScheme colors, {
+    required DayStat day,
+    required int maxWords,
+  }) {
+    final heightRatio =
+        maxWords > 0 ? (day.words / maxWords).clamp(0.0, 1.0) : 0.0;
+    final now = DateTime.now();
+    final isToday = day.date.year == now.year &&
+        day.date.month == now.month &&
+        day.date.day == now.day;
+
+    return Semantics(
+      label: '${day.dayLabel}: ${day.words} words',
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Text(
+            day.words > 0 ? '${day.words}' : '0',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: day.words > 0 ? colors.onSurface : colors.onSurfaceVariant,
+              fontWeight: day.words > 0 ? FontWeight.w600 : FontWeight.normal,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Expanded(
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: Container(
+                height: 110 * heightRatio > 6 ? 110 * heightRatio : 6,
+                decoration: BoxDecoration(
+                  color: day.words > 0
+                      ? colors.primary
+                      : colors.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            day.dayLabel,
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
+              color: isToday ? colors.primary : colors.onSurfaceVariant,
+            ),
+          ),
+          Text(
+            '${day.date.month}/${day.date.day}',
+            style: theme.textTheme.labelSmall?.copyWith(
+              fontSize: 10,
+              color: colors.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInsightRow(
+    ThemeData theme,
+    ColorScheme colors, {
+    required IconData icon,
+    required String title,
+    required String detail,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: colors.onSurfaceVariant),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                detail,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colors.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatNumber(int n) {
+    return n.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (m) => '${m[1]},',
+    );
+  }
+
+  String _formatDuration(Duration d) {
+    if (d.inSeconds <= 0) return '0 min';
+    if (d.inMinutes < 1) {
+      return '${d.inSeconds} sec';
+    } else if (d.inHours < 1) {
+      return '${d.inMinutes} min';
+    } else {
+      final hours = d.inMinutes / 60.0;
+      return '${hours.toStringAsFixed(1)} hrs';
+    }
+  }
+
+  String _formatAudioTime(Duration d) {
+    if (d.inSeconds < 60) {
+      return '${d.inSeconds}s';
+    }
+    final mins = d.inMinutes;
+    final secs = d.inSeconds % 60;
+    return '${mins}m ${secs}s';
   }
 }
