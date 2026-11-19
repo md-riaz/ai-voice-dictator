@@ -55,8 +55,8 @@ class SettingsController extends VeloraController {
   String? device;
   String language = 'auto';
   bool typeText = false;
-  String shortcut = 'Ctrl+Space';
-  String translationShortcut = 'Ctrl+Alt+Space';
+  String shortcut = 'Ctrl+Win';
+  String translationShortcut = 'Ctrl+Win+Alt';
   String keyStatus = 'Key missing';
   String? pageError;
   bool pageLoading = true;
@@ -258,12 +258,16 @@ class SettingsController extends VeloraController {
 
   Future<void> changeShortcuts(String primary, String translation) async {
     try {
-      if (primary == translation) {
-        throw StateError('Choose different shortcuts.');
+      if (!SettingsStore.validShortcuts(primary, translation)) {
+        throw const FormatException('Choose a valid shortcut combination.');
       }
       await onShortcutChanged(primary, translation);
-      await store.setShortcut(primary);
-      await store.setTranslationShortcut(translation);
+      try {
+        await store.setShortcuts(primary, translation);
+      } catch (_) {
+        await onShortcutChanged(shortcut, translationShortcut);
+        rethrow;
+      }
       if (!_closed) {
         _updateState(() {
           shortcut = primary;

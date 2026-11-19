@@ -16,10 +16,73 @@ std::wstring hud_text = L"Please wait before speaking...";
 COLORREF hud_color = RGB(255, 104, 104);
 bool hud_success = false;
 bool hud_writing = false;
-bool ctrl = false, win = false, alt = false, space = false;
-bool hold_started = false, chord_used = false, recording = false;
+constexpr unsigned kCtrl = 1, kWin = 2, kAlt = 4, kShift = 8, kSpace = 16;
+unsigned hold_chord = kCtrl | kWin;
+unsigned translation_chord = kCtrl | kWin | kAlt;
+unsigned hands_free_chord = kCtrl | kWin | kSpace;
+unsigned previous_keys = 0;
+bool hold_started = false, translating = false, chord_used = false, recording = false;
+bool swallowed_space = false;
 constexpr UINT_PTR kHoldTimer = 102;
 constexpr UINT_PTR kHudTimer = 103;
+
+constexpr bool MatchesChord(unsigned pressed, unsigned chord) { return pressed == chord; }
+static_assert(MatchesChord(kCtrl | kWin, kCtrl | kWin));
+static_assert(!MatchesChord(kCtrl, kCtrl | kWin));
+static_assert(!MatchesChord(kSpace, kCtrl | kWin | kSpace));
+static_assert(!MatchesChord(kCtrl | kWin | kAlt, kCtrl | kWin));
+
+unsigned PhysicalKeys() {
+  unsigned pressed = 0;
+  if (GetAsyncKeyState(VK_CONTROL) & 0x8000) pressed |= kCtrl;
+  if ((GetAsyncKeyState(VK_LWIN) | GetAsyncKeyState(VK_RWIN)) & 0x8000) pressed |= kWin;
+  if (GetAsyncKeyState(VK_MENU) & 0x8000) pressed |= kAlt;
+  if (GetAsyncKeyState(VK_SHIFT) & 0x8000) pressed |= kShift;
+  if (GetAsyncKeyState(VK_SPACE) & 0x8000) pressed |= kSpace;
+  return pressed;
+}
+
+unsigned ModifierForKey(DWORD key) {
+  if (key == VK_CONTROL || key == VK_LCONTROL || key == VK_RCONTROL) return kCtrl;
+  if (key == VK_LWIN || key == VK_RWIN) return kWin;
+  if (key == VK_MENU || key == VK_LMENU || key == VK_RMENU) return kAlt;
+  if (key == VK_SHIFT || key == VK_LSHIFT || key == VK_RSHIFT) return kShift;
+  if (key == VK_SPACE) return kSpace;
+  return 0;
+}
+
+unsigned OtherSideKey(DWORD key) {
+  switch (key) {
+    case VK_LCONTROL: return VK_RCONTROL;
+    case VK_RCONTROL: return VK_LCONTROL;
+    case VK_LWIN: return VK_RWIN;
+    case VK_RWIN: return VK_LWIN;
+    case VK_LMENU: return VK_RMENU;
+    case VK_RMENU: return VK_LMENU;
+    case VK_LSHIFT: return VK_RSHIFT;
+    case VK_RSHIFT: return VK_LSHIFT;
+    default: return 0;
+  }
+}
+
+bool ParseChord(const std::string& value, unsigned* result) {
+  unsigned pressed = 0;
+  size_t start = 0;
+  while (start < value.size()) {
+    const auto end = value.find('+', start);
+    const auto part = value.substr(start, end == std::string::npos ? end : end - start);
+    unsigned bit = part == "Ctrl" ? kCtrl : part == "Win" ? kWin :
+                   part == "Alt" ? kAlt : part == "Shift" ? kShift :
+                   part == "Space" ? kSpace : 0;
+    if (!bit || (pressed & bit)) return false;
+    pressed |= bit;
+    if (end == std::string::npos) break;
+    start = end + 1;
+    if (start == value.size()) return false;
+  }
+  *result = pressed;
+  return pressed != 0;
+}
 
 constexpr bool HasVisibleTitleBar(const RECT& window, const RECT& work) {
   const LONG left = window.left > work.left ? window.left : work.left;
@@ -165,44 +228,52 @@ LRESULT CALLBACK KeyboardHook(int code, WPARAM message, LPARAM data) {
     Emit("cancel");
     return 1;
   }
-  if (key == VK_LCONTROL || key == VK_RCONTROL || key == VK_CONTROL) ctrl = down;
-  if (key == VK_LWIN || key == VK_RWIN) win = down;
-  if (key == VK_LMENU || key == VK_RMENU || key == VK_MENU) {
-    const bool was_alt = alt;
-    alt = down;
-    if (down && !was_alt && ctrl && win && !chord_used) {
+  const unsigned bit = ModifierForKey(key);
+  if (!bit) {
+    if (down && !hold_started && (PhysicalKeys() & hold_chord) == hold_chord) {
       KillTimer(key_window, kHoldTimer);
-      Emit(hold_started ? "switchTranslation" : "translationStart");
-      hold_started = true;
-    } else if (up && was_alt && hold_started && ctrl && win) {
-      hold_started = false;
       chord_used = true;
-      Emit("holdStop");
     }
+    return CallNextHookEx(hook, code, message, data);
   }
-  if (key == VK_SPACE) {
-    const bool was_space = space;
-    space = down;
-    if (down && !was_space && ctrl && win) {
-      KillTimer(key_window, kHoldTimer);
-      Emit("handsFree");
-      hold_started = false;
-      chord_used = true;
-      return 1;
-    }
-    if (up && chord_used) return 1;
+  unsigned current = PhysicalKeys();
+  if (down) {
+    current |= bit;
+  } else {
+    const unsigned other = OtherSideKey(key);
+    if (!other || !(GetAsyncKeyState(other) & 0x8000)) current &= ~bit;
   }
-  if (ctrl && win && !alt && !space && !hold_started && !chord_used) {
+  const bool changed = current != previous_keys;
+  previous_keys = current;
+
+  if (up && key == VK_SPACE && swallowed_space) {
+    swallowed_space = false;
+    return 1;
+  }
+  if (hold_started && ((current & (translating ? translation_chord : hold_chord)) !=
+                       (translating ? translation_chord : hold_chord))) {
+    hold_started = false;
+    translating = false;
+    chord_used = true;
+    Emit("holdStop");
+  }
+  if (!MatchesChord(current, hold_chord)) KillTimer(key_window, kHoldTimer);
+  if (down && changed && !chord_used && MatchesChord(current, hands_free_chord)) {
+    KillTimer(key_window, kHoldTimer);
+    Emit("handsFree");
+    hold_started = false;
+    translating = false;
+    chord_used = true;
+    if (key == VK_SPACE) { swallowed_space = true; return 1; }
+  } else if (down && changed && !chord_used && MatchesChord(current, translation_chord)) {
+    KillTimer(key_window, kHoldTimer);
+    Emit(hold_started ? "switchTranslation" : "translationStart");
+    hold_started = true;
+    translating = true;
+  } else if (down && changed && !hold_started && !chord_used && MatchesChord(current, hold_chord)) {
     SetTimer(key_window, kHoldTimer, 180, nullptr);
   }
-  if ((!ctrl || !win) && (key == VK_LCONTROL || key == VK_RCONTROL || key == VK_CONTROL || key == VK_LWIN || key == VK_RWIN)) {
-    KillTimer(key_window, kHoldTimer);
-    if (hold_started) {
-      hold_started = false;
-      Emit("holdStop");
-    }
-    chord_used = false;
-  }
+  if ((current & hold_chord) == 0) chord_used = false;
   return CallNextHookEx(hook, code, message, data);
 }
 }
@@ -241,6 +312,29 @@ bool FlutterWindow::OnCreate() {
       result->Success();
     } else if (call.method_name() == "available") {
       result->Success(flutter::EncodableValue(hook != nullptr));
+    } else if (call.method_name() == "configureShortcuts") {
+      const auto* args = std::get_if<flutter::EncodableMap>(call.arguments());
+      auto read = [args](const char* name, unsigned* chord) {
+        if (!args) return false;
+        auto entry = args->find(flutter::EncodableValue(name));
+        if (entry == args->end()) return false;
+        auto value = std::get_if<std::string>(&entry->second);
+        return value && ParseChord(*value, chord);
+      };
+      unsigned hold = 0, translation = 0, hands_free = 0;
+      if (recording || !read("hold", &hold) || !read("translation", &translation) ||
+          !read("handsFree", &hands_free) || (hold & kSpace) ||
+          (hold & (hold - 1)) == 0 || translation == hold ||
+          (translation & hold) != hold || (translation & kSpace) ||
+          hands_free != (hold | kSpace)) {
+        result->Error("invalid_shortcut", "Shortcuts must use distinct supported combinations.");
+      } else {
+        KillTimer(key_window, kHoldTimer);
+        hold_chord = hold; translation_chord = translation; hands_free_chord = hands_free;
+        previous_keys = PhysicalKeys();
+        hold_started = false; translating = false; chord_used = previous_keys != 0;
+        result->Success(flutter::EncodableValue(true));
+      }
     } else if (call.method_name() == "ensureWindowVisible") {
       EnsureWindowVisible(); result->Success();
     } else if (call.method_name() == "showHud") {
@@ -315,8 +409,9 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
     case WM_TIMER:
       if (wparam == kHoldTimer) {
         KillTimer(hwnd, kHoldTimer);
-        if (ctrl && win && !alt && !space && !chord_used && !hold_started) {
+        if (MatchesChord(PhysicalKeys(), hold_chord) && !chord_used && !hold_started) {
           hold_started = true;
+          translating = false;
           Emit("holdStart");
         }
         return 0;

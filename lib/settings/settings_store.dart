@@ -127,15 +127,36 @@ class SettingsStore {
     }
   }
 
-  String shortcut() => _prefs.getString('shortcut') ?? 'Ctrl+Space';
-  Future<void> setShortcut(String value) async {
-    await _prefs.setString('shortcut', value);
+  static const shortcutModifiers = ['Ctrl', 'Win', 'Alt', 'Shift'];
+  static const shortcutBases = [
+    'Ctrl+Win',
+    'Ctrl+Alt',
+    'Ctrl+Shift',
+    'Win+Alt',
+    'Win+Shift',
+    'Alt+Shift',
+  ];
+  static bool validShortcuts(String hold, String translation) {
+    if (!shortcutBases.contains(hold)) return false;
+    final additions = shortcutModifiers.where(
+      (m) => !hold.split('+').contains(m),
+    );
+    return additions.any((m) => translation == '$hold+$m');
   }
 
-  String translationShortcut() =>
-      _prefs.getString('translation_shortcut') ?? 'Ctrl+Alt+Space';
-  Future<void> setTranslationShortcut(String value) async {
-    await _prefs.setString('translation_shortcut', value);
+  List<String> _shortcutConfiguration() {
+    final parts = (_prefs.getString('shortcut_config') ?? '').split('|');
+    if (parts.length == 2 && validShortcuts(parts[0], parts[1])) return parts;
+    return ['Ctrl+Win', 'Ctrl+Win+Alt'];
+  }
+
+  String shortcut() => _shortcutConfiguration()[0];
+  String translationShortcut() => _shortcutConfiguration()[1];
+  Future<void> setShortcuts(String hold, String translation) async {
+    if (!validShortcuts(hold, translation)) {
+      throw const FormatException('Choose a valid shortcut combination.');
+    }
+    await _prefs.setString('shortcut_config', '$hold|$translation');
   }
 
   Future<void> addHistory(String text, Duration duration) async {

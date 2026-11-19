@@ -7,6 +7,23 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test('shortcut configuration is validated and persists', () async {
+    SharedPreferences.setMockInitialValues({});
+    final store = SettingsStore();
+    await store.initialize(databasePath: inMemoryDatabasePath);
+    expect(store.shortcut(), 'Ctrl+Win');
+    await store.setShortcuts('Win+Shift', 'Win+Shift+Alt');
+    final reopened = SettingsStore();
+    await reopened.initialize(databasePath: inMemoryDatabasePath);
+    expect(reopened.shortcut(), 'Win+Shift');
+    expect(reopened.translationShortcut(), 'Win+Shift+Alt');
+    await expectLater(
+      store.setShortcuts('Ctrl', 'Ctrl+Alt'),
+      throwsFormatException,
+    );
+    await store.close();
+    await reopened.close();
+  });
   test('custom prompt persists and reset returns to default', () async {
     SharedPreferences.setMockInitialValues({});
     final store = SettingsStore();

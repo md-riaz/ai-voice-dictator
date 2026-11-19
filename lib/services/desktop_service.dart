@@ -7,7 +7,6 @@ import 'dart:convert';
 import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:hotkey_manager/hotkey_manager.dart';
 import 'package:nativeapi/nativeapi.dart' as nativeapi;
 import 'package:nativeapi_flutter/nativeapi_flutter.dart' show ImageAsset;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -248,9 +247,6 @@ class DesktopService {
   final void Function(String)? onKeyEvent;
   static const _keyChannel = MethodChannel('ai_voice_dictator/keys');
   final _user32 = DynamicLibrary.open('user32.dll');
-  final List<HotKey> _shortcuts = [];
-  String? _primary;
-  String? _translation;
   bool hotkeysAvailable = false;
   late final VeloraDesktopCoordinator _desktop;
   final _window = WindowManagerAdapter();
@@ -325,61 +321,20 @@ class DesktopService {
   Future<void> setRecording(bool active) =>
       _keyChannel.invokeMethod<void>('setRecording', active);
 
-  HotKey _parseShortcut(String value) {
-    final parts = value.toLowerCase().split('+').map((e) => e.trim()).toSet();
-    if (!parts.remove('space') || !parts.remove('ctrl')) {
-      throw const FormatException('Shortcut must include Ctrl and Space.');
-    }
-    final modifiers = <HotKeyModifier>[HotKeyModifier.control];
-    if (parts.remove('alt')) modifiers.add(HotKeyModifier.alt);
-    if (parts.remove('shift')) modifiers.add(HotKeyModifier.shift);
-    if (parts.remove('win')) modifiers.add(HotKeyModifier.meta);
-    if (parts.isNotEmpty) throw const FormatException('Unsupported shortcut.');
-    return HotKey(
-      key: PhysicalKeyboardKey.space,
-      modifiers: modifiers,
-      scope: HotKeyScope.system,
-    );
-  }
-
-  Future<void> _install(String primary, String translation) async {
-    final first = _parseShortcut(primary);
-    final second = _parseShortcut(translation);
-    if (first.modifiers!.toSet().containsAll(second.modifiers!) &&
-        first.modifiers!.length == second.modifiers!.length) {
-      throw const FormatException(
-        'Dictation and translation shortcuts must differ.',
-      );
-    }
-    await hotKeyManager.register(first, keyDownHandler: (_) => onHotkey());
-    _shortcuts.add(first);
-    await hotKeyManager.register(second, keyDownHandler: (_) => onTranslate());
-    _shortcuts.add(second);
-  }
-
-  Future<void> _clearShortcuts() async {
-    for (final key in List<HotKey>.of(_shortcuts)) {
-      await hotKeyManager.unregister(key);
-      _shortcuts.remove(key);
-    }
-  }
-
   Future<void> registerShortcuts(String primary, String translation) async {
-    _parseShortcut(primary);
-    _parseShortcut(translation);
-    final oldPrimary = _primary;
-    final oldTranslation = _translation;
-    await _clearShortcuts();
-    try {
-      await _install(primary, translation);
-      _primary = primary;
-      _translation = translation;
-    } catch (_) {
-      await _clearShortcuts();
-      if (oldPrimary != null && oldTranslation != null) {
-        await _install(oldPrimary, oldTranslation);
-      }
-      rethrow;
+    if (!hotkeysAvailable) {
+      throw StateError('Global shortcuts are unavailable.');
+    }
+    final accepted = await _keyChannel.invokeMethod<bool>(
+      'configureShortcuts',
+      {
+        'hold': primary,
+        'translation': translation,
+        'handsFree': '$primary+Space',
+      },
+    );
+    if (accepted != true) {
+      throw StateError('Could not configure shortcuts.');
     }
   }
 
@@ -546,7 +501,6 @@ class DesktopService {
   }
 
   Future<void> dispose() async {
-    await _clearShortcuts();
     await _saveBounds();
     await _desktopEvents?.cancel();
     await _desktop.dispose();

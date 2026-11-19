@@ -54,9 +54,17 @@ class FakeSettings implements SettingsStore {
   @override
   String language() => 'auto';
   @override
-  String shortcut() => 'Ctrl+Space';
+  String shortcut() => savedShortcut;
   @override
-  String translationShortcut() => 'Ctrl+Alt+Space';
+  String translationShortcut() => savedTranslationShortcut;
+  String savedShortcut = 'Ctrl+Win';
+  String savedTranslationShortcut = 'Ctrl+Win+Alt';
+  @override
+  Future<void> setShortcuts(String hold, String translation) async {
+    savedShortcut = hold;
+    savedTranslationShortcut = translation;
+  }
+
   @override
   String? deviceId() => 'device';
   @override
@@ -136,6 +144,24 @@ class PlaygroundDesktop implements DesktopService {
 }
 
 void main() {
+  test('shortcut changes configure and persist matching chords', () async {
+    final store = FakeSettings();
+    final calls = <String>[];
+    final controller = SettingsController(
+      store: store,
+      service: FakeSettingsService(),
+      onShortcutChanged: (hold, translation) async =>
+          calls.add('$hold|$translation'),
+    );
+    await controller.changeShortcuts('Ctrl+Alt', 'Ctrl+Alt+Shift');
+    expect(calls, ['Ctrl+Alt|Ctrl+Alt+Shift']);
+    expect(store.shortcut(), 'Ctrl+Alt');
+    expect(controller.translationShortcut, 'Ctrl+Alt+Shift');
+    await controller.changeShortcuts('Ctrl+Alt', 'Ctrl+Alt');
+    expect(calls, hasLength(1));
+    expect(store.shortcut(), 'Ctrl+Alt');
+    expect(controller.pageError, isNotNull);
+  });
   TestWidgetsFlutterBinding.ensureInitialized();
   test(
     'launch at sign-in reflects system state and handles failed changes',

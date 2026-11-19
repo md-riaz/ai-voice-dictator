@@ -7,6 +7,7 @@ import 'package:velora/velora.dart' as vx;
 import '../dictation_controller.dart';
 import '../ui/floating_hud.dart';
 import 'settings_controller.dart';
+import 'settings_store.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key, required this.controller, this.dictation});
@@ -531,8 +532,8 @@ class _SettingsViewState extends State<SettingsView> {
                                       style: theme.textTheme.titleMedium,
                                     ),
                                     const SizedBox(height: 8),
-                                    const Text(
-                                      'Click in the box, hold Ctrl + Win, wait for “Speak now”, then speak and release.',
+                                    Text(
+                                      'Click in the box, hold ${controller.shortcut.replaceAll('+', ' + ')}, wait for “Speak now”, then speak and release.',
                                     ),
                                     const SizedBox(height: 8),
                                     Text(
@@ -633,16 +634,92 @@ class _SettingsViewState extends State<SettingsView> {
                                       'Dictate wherever you are working.',
                                     ),
                                     const SizedBox(height: 20),
-                                    const Text(
-                                      'Ctrl + Win  ·  Hold to dictate; release to finish',
+                                    DropdownButtonFormField<String>(
+                                      key: ValueKey(
+                                        'hold:${controller.shortcut}:${controller.pageError}',
+                                      ),
+                                      initialValue: controller.shortcut,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Hold to dictate',
+                                      ),
+                                      items: [
+                                        for (final base
+                                            in SettingsStore.shortcutBases)
+                                          DropdownMenuItem(
+                                            value: base,
+                                            child: Text(
+                                              base.replaceAll('+', ' + '),
+                                            ),
+                                          ),
+                                      ],
+                                      onChanged: (base) {
+                                        if (base == null) return;
+                                        final available = SettingsStore
+                                            .shortcutModifiers
+                                            .where(
+                                              (m) =>
+                                                  !base.split('+').contains(m),
+                                            );
+                                        final current = controller
+                                            .translationShortcut
+                                            .split('+')
+                                            .last;
+                                        final extra =
+                                            available.contains(current)
+                                            ? current
+                                            : available.first;
+                                        controller.changeShortcuts(
+                                          base,
+                                          '$base+$extra',
+                                        );
+                                      },
+                                    ),
+                                    const SizedBox(height: 12),
+                                    DropdownButtonFormField<String>(
+                                      key: ValueKey(
+                                        'translation:${controller.shortcut}:${controller.translationShortcut}:${controller.pageError}',
+                                      ),
+                                      initialValue: controller
+                                          .translationShortcut
+                                          .split('+')
+                                          .last,
+                                      decoration: const InputDecoration(
+                                        labelText:
+                                            'Additional key for translation',
+                                      ),
+                                      items: [
+                                        for (final modifier
+                                            in SettingsStore.shortcutModifiers
+                                                .where(
+                                                  (m) => !controller.shortcut
+                                                      .split('+')
+                                                      .contains(m),
+                                                ))
+                                          DropdownMenuItem(
+                                            value: modifier,
+                                            child: Text(modifier),
+                                          ),
+                                      ],
+                                      onChanged: (modifier) {
+                                        if (modifier != null) {
+                                          controller.changeShortcuts(
+                                            controller.shortcut,
+                                            '${controller.shortcut}+$modifier',
+                                          );
+                                        }
+                                      },
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      '${controller.shortcut.replaceAll('+', ' + ')}  ·  Hold to dictate; release to finish',
                                     ),
                                     const SizedBox(height: 8),
-                                    const Text(
-                                      'Ctrl + Win + Alt  ·  Hold to translate; release to finish',
+                                    Text(
+                                      '${controller.translationShortcut.replaceAll('+', ' + ')}  ·  Hold to translate; release to finish',
                                     ),
                                     const SizedBox(height: 8),
-                                    const Text(
-                                      'Ctrl + Win + Space  ·  Press to start or finish hands-free',
+                                    Text(
+                                      '${controller.shortcut.replaceAll('+', ' + ')} + Space  ·  Press to start or finish hands-free',
                                     ),
                                     const SizedBox(height: 8),
                                     const Text('Esc  ·  Cancel dictation'),

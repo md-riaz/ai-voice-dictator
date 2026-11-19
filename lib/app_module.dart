@@ -76,6 +76,16 @@ class AppModule {
     module = AppModule._(settings, desktop, controller);
     await desktop.initialize(launchArguments: launchArguments);
     final errors = <String>[];
+    if (desktop.hotkeysAvailable) {
+      try {
+        await desktop.registerShortcuts(
+          settings.shortcut(),
+          settings.translationShortcut(),
+        );
+      } catch (_) {
+        desktop.hotkeysAvailable = false;
+      }
+    }
     if (!desktop.hotkeysAvailable) {
       errors.add('Global shortcuts could not be started. Restart the app.');
     }
