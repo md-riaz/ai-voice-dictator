@@ -84,6 +84,7 @@ Future<void> main(List<String> args) async {
   runApp(DictatorApp(module: module));
   if (kDebugMode ||
       module.startupError != null ||
+      !module.desktop.trayAvailable ||
       (await module.settings.apiKey()).isEmpty) {
     await module.controller.showSettings();
   }

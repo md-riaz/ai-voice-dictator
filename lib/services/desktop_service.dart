@@ -229,6 +229,24 @@ final class _Input extends Struct {
   external _InputUnion data;
 }
 
+class _WindowAdapter extends WindowManagerAdapter {
+  bool Function()? _onCloseRequested;
+  bool _attached = false;
+
+  @override
+  Future<bool> attach({required bool Function() onCloseRequested}) async {
+    _onCloseRequested = onCloseRequested;
+    return _attached = await super.attach(onCloseRequested: onCloseRequested);
+  }
+
+  Future<void> retryAttach() async {
+    final onCloseRequested = _onCloseRequested;
+    if (!_attached && onCloseRequested != null) {
+      await attach(onCloseRequested: onCloseRequested);
+    }
+  }
+}
+
 class DesktopService {
   DesktopService({
     required this.onHotkey,
@@ -254,13 +272,21 @@ class DesktopService {
   final _user32 = DynamicLibrary.open('user32.dll');
   bool hotkeysAvailable = false;
   late final VeloraDesktopCoordinator _desktop;
-  final _window = WindowManagerAdapter();
+  final _window = _WindowAdapter();
   late final SharedPreferencesStorageAdapter _storage;
   StreamSubscription<VeloraDesktopEvent>? _desktopEvents;
 
   Future<void> initialize({List<String> launchArguments = const []}) async {
     if (!Platform.isWindows) throw UnsupportedError('Windows is required.');
     await windowManager.ensureInitialized();
+    try {
+      await windowManager.waitUntilReadyToShow(
+        const WindowOptions(skipTaskbar: true),
+      );
+      await windowManager.hide();
+    } catch (error) {
+      debugPrint('Could not prepare the desktop window: $error');
+    }
     _storage = SharedPreferencesStorageAdapter(
       await SharedPreferences.getInstance(),
     );
@@ -269,7 +295,7 @@ class DesktopService {
         appId: 'com.mdriaz.aivoicedictator',
         appName: 'AI Voice Dictator',
         launchArguments: launchArguments,
-        tray: const VeloraTrayConfig(iconAsset: 'assets/tray_icon.ico'),
+        tray: const VeloraTrayConfig(iconAsset: 'assets/tray_icon.png'),
         closeToTray: true,
         singleInstance: true,
       ),
@@ -282,7 +308,9 @@ class DesktopService {
     );
     await _desktop.initialize();
     if (!_desktop.capabilities.window || !_desktop.capabilities.tray) {
-      throw StateError('Desktop window or tray could not be initialized.');
+      debugPrint(
+        'Desktop initialization degraded: ${_desktop.capabilities.problems}',
+      );
     }
     _keyChannel.setMethodCallHandler((call) async {
       onKeyEvent?.call(call.method);
@@ -304,6 +332,7 @@ class DesktopService {
     });
   }
 
+  bool get trayAvailable => _desktop.capabilities.tray;
   bool get singleInstanceAvailable => _desktop.capabilities.singleInstance;
   bool get autoStartAvailable => _desktop.capabilities.autoStart;
   Future<bool> isAutoStartEnabled() => _desktop.isAutoStartEnabled();
@@ -500,6 +529,11 @@ class DesktopService {
   Future<void> hideHud() => _keyChannel.invokeMethod<void>('hideHud');
 
   Future<void> showSettings() async {
+    try {
+      await _window.retryAttach();
+    } catch (error) {
+      debugPrint('Could not attach the desktop window: $error');
+    }
     await windowManager.setTitleBarStyle(TitleBarStyle.normal);
     await windowManager.setBackgroundColor(Colors.white);
     await windowManager.setAlwaysOnTop(false);
