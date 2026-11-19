@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -31,42 +30,21 @@ class FlowAudio implements AudioService {
 }
 
 class FlowDesktop implements DesktopService {
-  FlowDesktop({this.changed = false});
-  final bool changed;
+  int target = 123;
   String? pasted;
   String? copied;
   @override
   Future<void> copyTranscript(String text) async => copied = text;
   @override
-  int captureTarget() => 123;
+  int captureTarget() => target;
   @override
   Future<void> paste(String text, int target) async {
-    if (changed) throw StateError('Target changed');
-    expect(target, 123);
+    expect(target, this.target);
     pasted = text;
   }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-class DelayedKeySettings implements SettingsStore {
-  final key = Completer<String>();
-  @override
-  Future<String> apiKey() => key.future;
-  @override
-  String? deviceId() => null;
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-class ObservedDesktop extends FlowDesktop {
-  bool captured = false;
-  @override
-  int captureTarget() {
-    captured = true;
-    return super.captureTarget();
-  }
 }
 
 void main() {
@@ -95,9 +73,11 @@ void main() {
     bool Function()? canPaste,
     bool Function()? playgroundActive,
     bool Function(String)? insertPlayground,
+    void Function()? onTranscribe,
   }) async {
     final audio = FlowAudio(file);
     final client = MockClient((request) async {
+      onTranscribe?.call();
       expect(request.headers['x-goog-api-key'], 'test-key');
       final body = jsonDecode(request.body) as Map<String, dynamic>;
       expect(body['contents'], isNotEmpty);
@@ -149,36 +129,55 @@ void main() {
     expect((await settings.history()).single.text, 'Hello world.');
     expect(await file.exists(), false);
   });
-  test('captures the target before waiting for secure storage', () async {
-    final delayedSettings = DelayedKeySettings();
-    var playgroundFocused = true;
-    var capturedPlayground = false;
-    final audio = FlowAudio(file);
-    final desktop = ObservedDesktop();
-    final service = DictationService(
-      delayedSettings,
-      audio,
-      desktop,
-      playgroundActive: () {
-        capturedPlayground = playgroundFocused;
-        return playgroundFocused;
-      },
-    );
-    final start = service.start();
-    expect(desktop.captured, isTrue);
-    playgroundFocused = false;
-    delayedSettings.key.complete('test-key');
-    await start;
-    expect(capturedPlayground, isTrue);
-    expect(audio.started, isTrue);
-  });
-  test('preserves transcript in history when target changes', () async {
-    final desktop = FlowDesktop(changed: true);
-    await expectLater(runFlow(desktop), throwsStateError);
-    expect(desktop.pasted, isNull);
+  test('pastes into the current window when target changes', () async {
+    final desktop = FlowDesktop();
+    await runFlow(desktop, onTranscribe: () => desktop.target = 456);
+    expect(desktop.pasted, 'Hello world.');
     expect(desktop.copied, 'Hello world.');
     expect((await settings.history()).single.text, 'Hello world.');
     expect(await file.exists(), false);
+  });
+  test(
+    'routes to playground when it gains focus during transcription',
+    () async {
+      final desktop = FlowDesktop();
+      var focused = false;
+      String? inserted;
+      await runFlow(
+        desktop,
+        playgroundActive: () => focused,
+        onTranscribe: () => focused = true,
+        insertPlayground: (text) {
+          inserted = text;
+          return true;
+        },
+      );
+      expect(inserted, 'Hello world.');
+      expect(desktop.pasted, isNull);
+    },
+  );
+  test(
+    'pastes externally when playground loses focus during transcription',
+    () async {
+      final desktop = FlowDesktop();
+      var focused = true;
+      await runFlow(
+        desktop,
+        playgroundActive: () => focused,
+        onTranscribe: () => focused = false,
+        insertPlayground: (_) => fail('Playground is not focused'),
+      );
+      expect(desktop.pasted, 'Hello world.');
+    },
+  );
+  test('keeps clipboard and history when no window is active', () async {
+    final desktop = FlowDesktop();
+    await expectLater(
+      runFlow(desktop, onTranscribe: () => desktop.target = 0),
+      throwsStateError,
+    );
+    expect(desktop.copied, 'Hello world.');
+    expect((await settings.history()).single.text, 'Hello world.');
   });
   test(
     'inserts into the playground without simulating a system paste',

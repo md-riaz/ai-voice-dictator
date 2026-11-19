@@ -32,9 +32,7 @@ class DictationService {
   final bool Function()? canPaste;
   final bool Function()? playgroundActive;
   final bool Function(String)? insertPlayground;
-  int _target = 0;
   bool _translate = false;
-  bool _playgroundTarget = false;
 
   static Future<String> _transcribeWithGemini(
     File file,
@@ -51,9 +49,6 @@ class DictationService {
   ).transcribe(file, duration, mode: mode, targetLanguage: target);
 
   Future<void> start({bool translate = false}) async {
-    _target = desktop.captureTarget();
-    if (_target == 0) throw StateError('No active window found.');
-    _playgroundTarget = playgroundActive?.call() ?? false;
     if ((await settings.apiKey()).isEmpty) {
       throw const DictationException(
         'key_missing',
@@ -111,18 +106,23 @@ class DictationService {
       }
       if (canPaste != null && !canPaste!()) {
         throw StateError(
-          'The input focus changed. The transcript is on the clipboard.',
+          'Focus a text field. The transcript is on the clipboard.',
         );
       }
-      if (_playgroundTarget) {
-        if (playgroundActive?.call() != true ||
-            insertPlayground?.call(text) != true) {
+      if (playgroundActive?.call() == true) {
+        if (insertPlayground?.call(text) != true) {
           throw StateError(
             'The playground lost focus. The transcript is on the clipboard.',
           );
         }
       } else {
-        await desktop.paste(text, _target);
+        final target = desktop.captureTarget();
+        if (target == 0) {
+          throw StateError(
+            'No active window. The transcript is on the clipboard.',
+          );
+        }
+        await desktop.paste(text, target);
       }
     } finally {
       if (await recording.file.exists()) await recording.file.delete();
