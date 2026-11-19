@@ -160,9 +160,18 @@ class DictationController extends VeloraController {
         hud.value = HudState.writing;
         await desktop.updateHud(hud.value.name, message.value, seconds.value);
         await dictation.finish();
-        hud.value = HudState.success;
+        if (dictation.historySaveFailed) {
+          hud.value = HudState.error;
+          message.value = 'Text sent, but history could not be saved.';
+        } else {
+          hud.value = HudState.success;
+        }
         await desktop.updateHud(hud.value.name, message.value, seconds.value);
-        _scheduleHudHide(const Duration(milliseconds: 1200));
+        _scheduleHudHide(
+          dictation.historySaveFailed
+              ? const Duration(seconds: 5)
+              : const Duration(milliseconds: 1200),
+        );
       }
     } catch (e) {
       debugPrint(
@@ -185,6 +194,9 @@ class DictationController extends VeloraController {
                 .toString()
                 .replaceFirst('Bad state: ', '')
                 .replaceFirst('Exception: ', '');
+      if (dictation.historySaveFailed) {
+        message.value += ' History could not be saved.';
+      }
       await desktop.updateHud(hud.value.name, message.value, seconds.value);
       await desktop.showHud();
       _scheduleHudHide(const Duration(seconds: 5));

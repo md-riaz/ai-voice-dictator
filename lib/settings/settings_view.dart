@@ -839,6 +839,85 @@ class _SettingsViewState extends State<SettingsView> {
                                       'Your latest transcripts are stored locally.',
                                     ),
                                     const SizedBox(height: 12),
+                                    const Text('Keep history'),
+                                    Semantics(
+                                      label: 'History retention',
+                                      child: DropdownButton<int>(
+                                        value: controller.historyRetention,
+                                        isExpanded: true,
+                                        items: const [
+                                          DropdownMenuItem(
+                                            value: 0,
+                                            child: Text('Keep all'),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 30,
+                                            child: Text('30 days'),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 90,
+                                            child: Text('90 days'),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 365,
+                                            child: Text('1 year'),
+                                          ),
+                                        ],
+                                        onChanged: (days) async {
+                                          if (days == null ||
+                                              days ==
+                                                  controller.historyRetention) {
+                                            return;
+                                          }
+                                          if (days != 0) {
+                                            final confirmed = await showDialog<bool>(
+                                              context: context,
+                                              builder: (context) => AlertDialog(
+                                                title: const Text(
+                                                  'Change history retention?',
+                                                ),
+                                                content: Text(
+                                                  'When your next dictation is saved, entries older than $days days will be permanently deleted.',
+                                                ),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(
+                                                          context,
+                                                          false,
+                                                        ),
+                                                    child: const Text('Cancel'),
+                                                  ),
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(
+                                                          context,
+                                                          true,
+                                                        ),
+                                                    child: const Text(
+                                                      'Confirm',
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                            if (confirmed != true ||
+                                                !context.mounted) {
+                                              return;
+                                            }
+                                          }
+                                          await controller.setHistoryRetention(
+                                            days,
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                    Text(
+                                      controller.historyRetention == 0
+                                          ? 'History is kept until you clear it.'
+                                          : 'Older entries are deleted when a new dictation is saved.',
+                                    ),
+                                    const SizedBox(height: 12),
                                     if (controller.history.isNotEmpty)
                                       TextButton.icon(
                                         onPressed: () async {
@@ -932,6 +1011,17 @@ class _SettingsViewState extends State<SettingsView> {
                                                   );
                                             }
                                           },
+                                        ),
+                                      ),
+                                    if (controller.historyHasMore)
+                                      TextButton(
+                                        onPressed: controller.historyLoadingMore
+                                            ? null
+                                            : controller.loadMoreHistory,
+                                        child: Text(
+                                          controller.historyLoadingMore
+                                              ? 'Loading…'
+                                              : 'Load older dictations',
                                         ),
                                       ),
                                   ],

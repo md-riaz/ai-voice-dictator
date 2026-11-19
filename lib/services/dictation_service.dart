@@ -5,6 +5,7 @@ import '../settings/settings_store.dart';
 import 'audio_service.dart';
 import 'desktop_service.dart';
 import 'gemini_service.dart';
+import 'password_guard.dart';
 
 typedef Transcribe = Future<String> Function(
   File file,
@@ -24,6 +25,7 @@ class DictationService {
     this.canPaste,
     this.playgroundActive,
     this.insertPlayground,
+    this.passwordCheck,
   }) : _transcribe = transcribe; // ignore: prefer_initializing_formals
   final SettingsStore settings;
   final AudioService audio;
@@ -32,7 +34,9 @@ class DictationService {
   final bool Function()? canPaste;
   final bool Function()? playgroundActive;
   final bool Function(String)? insertPlayground;
+  final Future<PasswordFieldStatus> Function()? passwordCheck;
   bool _translate = false;
+  bool historySaveFailed = false;
 
   static Future<String> _transcribeWithGemini(
     File file,
@@ -49,6 +53,8 @@ class DictationService {
   ).transcribe(file, duration, mode: mode, targetLanguage: target);
 
   Future<void> start({bool translate = false}) async {
+    await _checkPasswordField();
+    historySaveFailed = false;
     if ((await settings.apiKey()).isEmpty) {
       throw const DictationException(
         'key_missing',
@@ -60,6 +66,7 @@ class DictationService {
   }
 
   Future<void> finish() async {
+    historySaveFailed = false;
     final recording = await audio.stop();
     if (recording == null) {
       throw const DictationException(
@@ -68,6 +75,7 @@ class DictationService {
       );
     }
     try {
+      await _checkPasswordField();
       DictationGuardrails.validateAudio(recording.file, recording.durationMs);
       final mode = _translate
           ? DictationLanguageMode.translate
@@ -94,16 +102,28 @@ class DictationService {
         settings.targetLanguage(),
         settings.model(),
       );
+      var clipboardSaved = true;
       try {
         await desktop.copyTranscript(text);
       } catch (_) {
-        throw StateError('Could not copy the transcript. Find it in history.');
-      } finally {
+        clipboardSaved = false;
+      }
+      try {
         await settings.addHistory(
           text,
           Duration(milliseconds: recording.durationMs),
         );
+      } catch (_) {
+        historySaveFailed = true;
       }
+      if (!clipboardSaved) {
+        throw StateError(
+          historySaveFailed
+              ? 'Could not save the transcript to the clipboard or history.'
+              : 'Could not copy the transcript. Find it in history.',
+        );
+      }
+      await _checkPasswordField();
       if (canPaste != null && !canPaste!()) {
         throw StateError(
           'Focus a text field. The transcript is on the clipboard.',
@@ -130,6 +150,22 @@ class DictationService {
       }
     } finally {
       if (await recording.file.exists()) await recording.file.delete();
+    }
+  }
+
+  Future<void> _checkPasswordField() async {
+    final status = await passwordCheck?.call();
+    if (status == PasswordFieldStatus.password) {
+      throw const DictationException(
+        'password_field',
+        'Voice input is unavailable in password fields.',
+      );
+    }
+    if (status == PasswordFieldStatus.unknown) {
+      throw const DictationException(
+        'focus_check_unavailable',
+        'Could not check the focused field. Try again.',
+      );
     }
   }
 

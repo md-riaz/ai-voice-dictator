@@ -16,6 +16,8 @@ class SlowDictation extends FakeDictation {
 class FakeDictation implements DictationService {
   final events = <String>[];
   @override
+  bool get historySaveFailed => false;
+  @override
   Future<void> start({bool translate = false}) async =>
       events.add(translate ? 'translate' : 'start');
   @override

@@ -8,10 +8,12 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class HistoryEntry {
   const HistoryEntry({
+    this.id,
     required this.text,
     required this.createdAt,
     required this.duration,
   });
+  final int? id;
   final String text;
   final DateTime createdAt;
   final Duration duration;
@@ -27,7 +29,9 @@ class SettingsStore {
     : _secure = secureStorage ?? const FlutterSecureStorage();
   final FlutterSecureStorage _secure;
   late SharedPreferences _prefs;
-  late Database _database;
+  Database? _database;
+  Database get _historyDatabase =>
+      _database ?? (throw StateError('History storage is unavailable.'));
 
   Future<void> initialize({String? databasePath}) async {
     _prefs = await SharedPreferences.getInstance();
@@ -35,20 +39,25 @@ class SettingsStore {
     final path =
         databasePath ??
         p.join((await getApplicationSupportDirectory()).path, 'history.sqlite');
-    if (path != inMemoryDatabasePath) {
-      await Directory(p.dirname(path)).create(recursive: true);
+    try {
+      if (path != inMemoryDatabasePath) {
+        await Directory(p.dirname(path)).create(recursive: true);
+      }
+      _database = await databaseFactoryFfi.openDatabase(
+        path,
+        options: OpenDatabaseOptions(
+          version: 1,
+          onCreate: (db, version) async {
+            await db.execute(
+              'CREATE TABLE history (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT NOT NULL, created_at INTEGER NOT NULL, duration_ms INTEGER NOT NULL)',
+            );
+          },
+        ),
+      );
+    } catch (_) {
+      // Preserve an inaccessible database; dictation can continue without history.
+      _database = null;
     }
-    _database = await databaseFactoryFfi.openDatabase(
-      path,
-      options: OpenDatabaseOptions(
-        version: 1,
-        onCreate: (db, version) async {
-          await db.execute(
-            'CREATE TABLE history (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT NOT NULL, created_at INTEGER NOT NULL, duration_ms INTEGER NOT NULL)',
-          );
-        },
-      ),
-    );
   }
 
   Future<String> apiKey() async =>
@@ -65,6 +74,18 @@ class SettingsStore {
   bool typeText() => _prefs.getBool('type_text') ?? false;
   Future<void> setTypeText(bool value) async =>
       _prefs.setBool('type_text', value);
+  int historyRetention() {
+    final days = _prefs.getInt('history_retention_days') ?? 0;
+    return [0, 30, 90, 365].contains(days) ? days : 0;
+  }
+
+  Future<void> setHistoryRetention(int days) async {
+    if (![0, 30, 90, 365].contains(days)) {
+      throw const FormatException('Invalid history retention.');
+    }
+    await _prefs.setInt('history_retention_days', days);
+  }
+
   String? systemPrompt() => _prefs.getString('system_prompt');
   Future<void> setSystemPrompt(String? value) async {
     if (value == null || value.trim().isEmpty) {
@@ -118,24 +139,42 @@ class SettingsStore {
   }
 
   Future<void> addHistory(String text, Duration duration) async {
-    await _database.insert('history', {
-      'text': text,
-      'created_at': DateTime.now().millisecondsSinceEpoch,
-      'duration_ms': duration.inMilliseconds,
+    final now = DateTime.now();
+    await _historyDatabase.transaction((txn) async {
+      await txn.insert('history', {
+        'text': text,
+        'created_at': now.millisecondsSinceEpoch,
+        'duration_ms': duration.inMilliseconds,
+      });
+      final days = historyRetention();
+      if (days > 0) {
+        await txn.delete(
+          'history',
+          where: 'created_at < ?',
+          whereArgs: [
+            now.subtract(Duration(days: days)).millisecondsSinceEpoch,
+          ],
+        );
+      }
     });
   }
 
-  Future<void> clearHistory() async => _database.delete('history');
+  Future<void> clearHistory() async => _historyDatabase.delete('history');
 
-  Future<List<HistoryEntry>> history() async {
-    final rows = await _database.query(
+  Future<List<HistoryEntry>> history() => historyPage();
+
+  Future<List<HistoryEntry>> historyPage({int? beforeId}) async {
+    final rows = await _historyDatabase.query(
       'history',
+      where: beforeId == null ? null : 'id < ?',
+      whereArgs: beforeId == null ? null : [beforeId],
       orderBy: 'id DESC',
       limit: 50,
     );
     return rows
         .map(
           (row) => HistoryEntry(
+            id: row['id'] as int,
             text: row['text'] as String,
             createdAt: DateTime.fromMillisecondsSinceEpoch(
               row['created_at'] as int,
@@ -146,5 +185,7 @@ class SettingsStore {
         .toList();
   }
 
-  Future<void> close() => _database.close();
+  Future<void> close() async {
+    await _database?.close();
+  }
 }

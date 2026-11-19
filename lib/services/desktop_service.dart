@@ -412,8 +412,13 @@ class DesktopService {
         .lookupFunction<Int16 Function(Int32), int Function(int)>(
           'GetAsyncKeyState',
         );
-    bool modifiersHeld() =>
-        [0x10, 0x11, 0x12, 0x5b, 0x5c].any((key) => (keyState(key) & 0x8000) != 0);
+    bool modifiersHeld() => [
+      0x10,
+      0x11,
+      0x12,
+      0x5b,
+      0x5c,
+    ].any((key) => (keyState(key) & 0x8000) != 0);
     final deadline = DateTime.now().add(const Duration(seconds: 2));
     while (modifiersHeld() && DateTime.now().isBefore(deadline)) {
       await Future<void>.delayed(const Duration(milliseconds: 30));
@@ -470,8 +475,13 @@ class DesktopService {
         .lookupFunction<Int16 Function(Int32), int Function(int)>(
           'GetAsyncKeyState',
         );
-    bool modifiersHeld() =>
-        [0x10, 0x11, 0x12, 0x5b, 0x5c].any((key) => (keyState(key) & 0x8000) != 0);
+    bool modifiersHeld() => [
+      0x10,
+      0x11,
+      0x12,
+      0x5b,
+      0x5c,
+    ].any((key) => (keyState(key) & 0x8000) != 0);
     final deadline = DateTime.now().add(const Duration(seconds: 2));
     while (modifiersHeld() && DateTime.now().isBefore(deadline)) {
       await Future<void>.delayed(const Duration(milliseconds: 30));

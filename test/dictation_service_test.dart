@@ -5,6 +5,7 @@ import 'package:ai_voice_dictator/guardrails.dart';
 import 'package:ai_voice_dictator/services/desktop_service.dart';
 import 'package:ai_voice_dictator/services/dictation_service.dart';
 import 'package:ai_voice_dictator/services/gemini_service.dart';
+import 'package:ai_voice_dictator/services/password_guard.dart';
 import 'package:ai_voice_dictator/settings/settings_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -20,6 +21,8 @@ class FakeSettings implements SettingsStore {
   String targetLanguage() => 'English';
   @override
   String model() => SettingsStore.defaultModel;
+  @override
+  bool typeText() => false;
   @override
   Future<void> addHistory(String text, Duration duration) async {
     events.add('history:$text');
@@ -47,6 +50,12 @@ class EmptyAudio extends FakeAudio {
   Future<RecordedAudioResult?> stop() async => null;
 }
 
+class FailingHistorySettings extends FakeSettings {
+  @override
+  Future<void> addHistory(String text, Duration duration) async =>
+      throw StateError('disk full');
+}
+
 class FakeDesktop implements DesktopService {
   FakeDesktop(this.events);
   final List<String> events;
@@ -64,6 +73,90 @@ class FakeDesktop implements DesktopService {
 }
 
 void main() {
+  test('password or unknown field blocks recording', () async {
+    final settings = FakeSettings();
+    for (final status in [
+      PasswordFieldStatus.password,
+      PasswordFieldStatus.unknown,
+    ]) {
+      final service = DictationService(
+        settings,
+        FakeAudio(File('unused')),
+        FakeDesktop(settings.events),
+        passwordCheck: () async => status,
+      );
+      await expectLater(service.start(), throwsA(isA<DictationException>()));
+    }
+  });
+
+  test(
+    'password detected before upload deletes audio without sending',
+    () async {
+      final dir = await Directory.systemTemp.createTemp('dictation_test');
+      addTearDown(() => dir.delete(recursive: true));
+      final file = File('${dir.path}/audio.wav');
+      await file.writeAsBytes(List.filled(9000, 1));
+      final settings = FakeSettings();
+      var checks = 0;
+      var sent = false;
+      final service = DictationService(
+        settings,
+        FakeAudio(file),
+        FakeDesktop(settings.events),
+        passwordCheck: () async => ++checks == 1
+            ? PasswordFieldStatus.other
+            : PasswordFieldStatus.password,
+        transcribe: (file, seconds, key, mode, target, model) async {
+          sent = true;
+          return 'Hello';
+        },
+      );
+      await service.start();
+      await expectLater(service.finish(), throwsA(isA<DictationException>()));
+      expect(sent, isFalse);
+      expect(await file.exists(), isFalse);
+    },
+  );
+
+  test('password detected after transcription blocks insertion', () async {
+    final dir = await Directory.systemTemp.createTemp('dictation_test');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = File('${dir.path}/audio.wav');
+    await file.writeAsBytes(List.filled(9000, 1));
+    final settings = FakeSettings();
+    var checks = 0;
+    final service = DictationService(
+      settings,
+      FakeAudio(file),
+      FakeDesktop(settings.events),
+      passwordCheck: () async => ++checks < 3
+          ? PasswordFieldStatus.other
+          : PasswordFieldStatus.password,
+      transcribe: (file, seconds, key, mode, target, model) async => 'Hello',
+    );
+    await service.start();
+    await expectLater(service.finish(), throwsA(isA<DictationException>()));
+    expect(settings.events, ['copy:Hello', 'history:Hello']);
+  });
+
+  test('history failure does not block paste or discard clipboard', () async {
+    final dir = await Directory.systemTemp.createTemp('dictation_test');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = File('${dir.path}/audio.wav');
+    await file.writeAsBytes(List.filled(9000, 1));
+    final settings = FailingHistorySettings();
+    final service = DictationService(
+      settings,
+      FakeAudio(file),
+      FakeDesktop(settings.events),
+      transcribe: (file, seconds, key, mode, target, model) async => 'Hello',
+    );
+    await service.start();
+    await service.finish();
+    expect(service.historySaveFailed, isTrue);
+    expect(settings.events, ['copy:Hello', 'paste:Hello:42']);
+    expect(await file.exists(), isFalse);
+  });
   test('explains when no audio was captured', () async {
     final dir = await Directory.systemTemp.createTemp('dictation_test');
     addTearDown(() => dir.delete(recursive: true));

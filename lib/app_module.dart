@@ -6,6 +6,7 @@ import 'dictation_controller.dart';
 import 'services/audio_service.dart';
 import 'services/desktop_service.dart';
 import 'services/dictation_service.dart';
+import 'services/password_guard.dart';
 import 'settings/settings_controller.dart';
 import 'settings/settings_service.dart';
 import 'settings/settings_store.dart';
@@ -57,11 +58,13 @@ class AppModule {
         }
       },
     );
+    final passwordGuard = PasswordGuard();
     controller = DictationController(
       DictationService(
         settings,
         AudioService(),
         desktop,
+        passwordCheck: passwordGuard.check,
         canPaste: () => controller.canPaste,
         playgroundActive: () => controller.playgroundActive,
         insertPlayground: (text) =>

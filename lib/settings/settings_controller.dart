@@ -48,6 +48,10 @@ class SettingsController extends VeloraController {
   StreamSubscription<Amplitude>? amplitude;
   List<InputDevice> devices = [];
   List<HistoryEntry> history = [];
+  int historyRetention = 0;
+  bool historyHasMore = false;
+  bool historyLoadingMore = false;
+  int _historyVersion = 0;
   String? device;
   String language = 'auto';
   bool typeText = false;
@@ -80,7 +84,14 @@ class SettingsController extends VeloraController {
       } catch (_) {
         devices = [];
       }
-      final history = await store.history().timeout(const Duration(seconds: 8));
+      List<HistoryEntry> history;
+      var historyUnavailable = false;
+      try {
+        history = await store.history().timeout(const Duration(seconds: 8));
+      } catch (_) {
+        history = [];
+        historyUnavailable = true;
+      }
       bool? autoStart;
       if (getAutoStart != null && onAutoStartChanged != null) {
         try {
@@ -106,6 +117,9 @@ class SettingsController extends VeloraController {
         final savedDevice = store.deviceId();
         device = devices.any((d) => d.id == savedDevice) ? savedDevice : null;
         this.history = history;
+        historyRetention = store.historyRetention();
+        historyHasMore = history.length == 50 && history.last.id != null;
+        if (historyUnavailable) pageError = 'Could not load dictation history.';
         this.autoStart = autoStart;
         keyStatus = key.isEmpty ? 'Key missing' : 'Checking saved key…';
         needsSetup = key.isEmpty;
@@ -132,11 +146,50 @@ class SettingsController extends VeloraController {
   }
 
   Future<void> refreshHistory() async {
+    final version = ++_historyVersion;
     try {
       final entries = await store.history();
-      _updateState(() => history = entries);
+      if (version != _historyVersion) return;
+      _updateState(() {
+        history = entries;
+        historyHasMore = entries.length == 50 && entries.last.id != null;
+        historyLoadingMore = false;
+      });
     } catch (_) {
       _updateState(() => pageError = 'Could not load dictation history.');
+    }
+  }
+
+  Future<void> loadMoreHistory() async {
+    if (!historyHasMore || historyLoadingMore || history.isEmpty) return;
+    final beforeId = history.last.id;
+    if (beforeId == null) return;
+    final version = _historyVersion;
+    _updateState(() => historyLoadingMore = true);
+    try {
+      final entries = await store.historyPage(beforeId: beforeId);
+      if (version != _historyVersion) return;
+      _updateState(() {
+        history.addAll(entries);
+        historyHasMore = entries.length == 50 && entries.last.id != null;
+      });
+    } catch (_) {
+      if (version == _historyVersion) {
+        _updateState(() => pageError = 'Could not load more history.');
+      }
+    } finally {
+      if (version == _historyVersion) {
+        _updateState(() => historyLoadingMore = false);
+      }
+    }
+  }
+
+  Future<void> setHistoryRetention(int days) async {
+    try {
+      await store.setHistoryRetention(days);
+      _updateState(() => historyRetention = days);
+    } catch (_) {
+      _updateState(() => pageError = 'Could not save history retention.');
     }
   }
 

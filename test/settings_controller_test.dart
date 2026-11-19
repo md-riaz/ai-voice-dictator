@@ -21,6 +21,17 @@ class FakeSettings implements SettingsStore {
   Future<void> setSystemPrompt(String? value) async => savedPrompt = value;
   bool historyCleared = false;
   bool failClearHistory = false;
+  List<HistoryEntry>? testHistory;
+  List<HistoryEntry> olderHistory = [];
+  @override
+  Future<List<HistoryEntry>> historyPage({int? beforeId}) async => olderHistory;
+  int retention = 0;
+  @override
+  int historyRetention() => retention;
+  @override
+  Future<void> setHistoryRetention(int days) async => retention = days;
+  @override
+  bool typeText() => false;
   String savedModel = SettingsStore.defaultModel;
   @override
   String model() => savedModel;
@@ -57,13 +68,14 @@ class FakeSettings implements SettingsStore {
   @override
   Future<List<HistoryEntry>> history() async => historyCleared
       ? []
-      : [
-          HistoryEntry(
-            text: 'Hello',
-            createdAt: DateTime(2026),
-            duration: const Duration(seconds: 1),
-          ),
-        ];
+      : testHistory ??
+            [
+              HistoryEntry(
+                text: 'Hello',
+                createdAt: DateTime(2026),
+                duration: const Duration(seconds: 1),
+              ),
+            ];
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -457,6 +469,80 @@ void main() {
     await tester.pumpAndSettle();
     expect(store.historyCleared, true);
     expect(find.text('No dictations yet.'), findsOneWidget);
+  });
+  testWidgets('retention is changed only after confirmation', (tester) async {
+    final store = FakeSettings();
+    final controller = SettingsController(
+      store: store,
+      service: FakeSettingsService(),
+      onShortcutChanged: (_, _) async {},
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ui.VeloraTheme.light(),
+        home: SettingsView(controller: controller),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('History'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Keep all'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('30 days').last);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('permanently deleted'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(store.retention, 0);
+    expect(find.text('Keep all'), findsOneWidget);
+    await tester.tap(find.text('Keep all'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('30 days').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Confirm'));
+    await tester.pumpAndSettle();
+    expect(store.retention, 30);
+    expect(find.text('30 days'), findsOneWidget);
+  });
+  testWidgets('older history can be loaded', (tester) async {
+    final store = FakeSettings()
+      ..testHistory = List.generate(
+        50,
+        (i) => HistoryEntry(
+          id: 100 - i,
+          text: 'Entry $i',
+          createdAt: DateTime(2026),
+          duration: Duration.zero,
+        ),
+      )
+      ..olderHistory = [
+        HistoryEntry(
+          id: 50,
+          text: 'Older entry',
+          createdAt: DateTime(2026),
+          duration: Duration.zero,
+        ),
+      ];
+    final controller = SettingsController(
+      store: store,
+      service: FakeSettingsService(),
+      onShortcutChanged: (_, _) async {},
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ui.VeloraTheme.light(),
+        home: SettingsView(controller: controller),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('History'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Load older dictations'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Load older dictations'));
+    await tester.pumpAndSettle();
+    expect(find.text('Older entry'), findsOneWidget);
+    expect(find.text('Load older dictations'), findsNothing);
   });
   test('failed history deletion retains entries and reports error', () async {
     final store = FakeSettings()..failClearHistory = true;
