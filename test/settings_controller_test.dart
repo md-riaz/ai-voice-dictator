@@ -225,6 +225,8 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Gemini connection'), findsOneWidget);
+    expect(find.text('Open Google AI Studio API keys'), findsOneWidget);
+    expect(find.textContaining('not the project ID'), findsOneWidget);
     expect(find.text('Try dictation'), findsNothing);
     await tester.tap(find.text('Home'));
     await tester.pumpAndSettle();

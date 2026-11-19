@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:velora_ui/velora_ui.dart';
 import 'package:velora/velora.dart' as vx;
 
@@ -21,6 +22,27 @@ class _SettingsViewState extends State<SettingsView> {
   bool _setupPageChosen = false;
   bool _wasSetupRequired = false;
   SettingsController get controller => widget.controller;
+
+  Future<void> _openApiKeys() async {
+    try {
+      if (await launchUrl(
+        Uri.parse('https://aistudio.google.com/api-keys'),
+        mode: LaunchMode.externalApplication,
+      )) {
+        return;
+      }
+    } catch (_) {}
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Could not open Google AI Studio. Visit aistudio.google.com/api-keys in your browser.',
+          ),
+        ),
+      );
+    }
+  }
+
   Future<void> _updatePrompt({bool reset = false}) async {
     try {
       if (reset) {
@@ -297,7 +319,20 @@ class _SettingsViewState extends State<SettingsView> {
                                         'Save and validate your Gemini API key to continue.',
                                       ),
                                     ],
-                                    const SizedBox(height: 20),
+                                    const SizedBox(height: 12),
+                                    const Text(
+                                      '1. Open Google AI Studio and sign in.\n'
+                                      '2. Use an existing Google Cloud project, or create one if needed. Import an existing project if it is not listed.\n'
+                                      '3. Create or select an API key, copy only the key (not the project ID), then paste and save it below.',
+                                    ),
+                                    TextButton.icon(
+                                      onPressed: _openApiKeys,
+                                      icon: const Icon(Icons.open_in_new),
+                                      label: const Text(
+                                        'Open Google AI Studio API keys',
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
                                     Text(
                                       'Gemini API key',
                                       style: theme.textTheme.labelLarge,

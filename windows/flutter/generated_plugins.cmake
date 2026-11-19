@@ -8,6 +8,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   flutter_secure_storage_windows
   power_state_monitor
   record_windows
+  url_launcher_windows
   windows_single_instance
 )
 
