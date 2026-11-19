@@ -51,6 +51,8 @@ class FakeDesktop implements DesktopService {
 
 class FakeSettings implements SettingsStore {
   @override
+  bool streamPreview() => false;
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 

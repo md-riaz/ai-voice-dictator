@@ -168,7 +168,12 @@ class DictationController extends VeloraController {
         hud.value = HudState.writing;
         message.value = '';
         await desktop.updateHud(hud.value.name, message.value, seconds.value);
-        final useStream = settings.streamPreview();
+        var useStream = false;
+        try {
+          useStream = settings.streamPreview();
+        } catch (_) {
+          useStream = false;
+        }
         await dictation.finish(
           onChunk: useStream
               ? (accumulated) {
