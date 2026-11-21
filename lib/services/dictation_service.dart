@@ -47,17 +47,14 @@ class DictationService {
     String model,
     String? systemPrompt, {
     void Function(String)? onChunk,
-  }) => GeminiDictationService(
-    key,
-    model: model,
-    systemPrompt: systemPrompt,
-  ).transcribe(
-    file,
-    duration,
-    mode: mode,
-    targetLanguage: target,
-    onChunk: onChunk,
-  );
+  }) => GeminiDictationService(key, model: model, systemPrompt: systemPrompt)
+      .transcribe(
+        file,
+        duration,
+        mode: mode,
+        targetLanguage: target,
+        onChunk: onChunk,
+      );
 
   Future<void> start({bool translate = false}) async {
     await _checkPasswordField();
@@ -86,10 +83,7 @@ class DictationService {
       DictationGuardrails.validateAudio(recording.file, recording.durationMs);
       final mode = _translate
           ? DictationLanguageMode.translate
-          : DictationLanguageMode.values.firstWhere(
-              (m) => m.name == settings.language(),
-              orElse: () => DictationLanguageMode.auto,
-            );
+          : DictationLanguageMode.auto;
       final transcribe =
           _transcribe ??
           (file, duration, key, mode, target, model) => _transcribeWithGemini(
@@ -124,11 +118,9 @@ class DictationService {
       } catch (_) {
         historySaveFailed = true;
       }
-      if (!clipboardSaved) {
+      if (!clipboardSaved && historySaveFailed) {
         throw StateError(
-          historySaveFailed
-              ? 'Could not save the transcript to the clipboard or history.'
-              : 'Could not copy the transcript. Find it in history.',
+          'Could not save the transcript to the clipboard or history.',
         );
       }
       await _checkPasswordField();
@@ -150,15 +142,14 @@ class DictationService {
             'No active window. The transcript is on the clipboard.',
           );
         }
-        if (settings.typeText()) {
-          if (text.contains('\n') || text.contains('\r')) {
-            throw StateError(
-              'Multiline text is on the clipboard. Paste it into a multiline field, or turn off typing mode.',
-            );
-          }
+        if (settings.typeText() || !clipboardSaved) {
           await desktop.typeText(text, target);
         } else {
-          await desktop.paste(text, target);
+          try {
+            await desktop.paste(text, target);
+          } on PasteNotDispatched {
+            await desktop.typeText(text, target);
+          }
         }
       }
     } finally {

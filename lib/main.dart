@@ -90,6 +90,7 @@ Future<void> main(List<String> args) async {
   final module = await AppModule.create(launchArguments: args);
   runApp(DictatorApp(module: module));
   if (kDebugMode ||
+      !args.contains('--autostart') ||
       module.startupError != null ||
       !module.desktop.trayAvailable ||
       (await module.settings.apiKey()).isEmpty) {

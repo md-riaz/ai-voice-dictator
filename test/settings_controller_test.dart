@@ -271,6 +271,10 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    expect(find.text('Language mode'), findsNothing);
+    await tester.tap(find.text('Setup'));
+    await tester.pumpAndSettle();
+    expect(find.text('Language mode'), findsNothing);
     controller.target.text = 'French';
     final button = find.text('Save target language');
     await tester.scrollUntilVisible(

@@ -247,6 +247,10 @@ class _WindowAdapter extends WindowManagerAdapter {
   }
 }
 
+class PasteNotDispatched implements Exception {
+  const PasteNotDispatched();
+}
+
 class DesktopService {
   DesktopService({
     required this.onHotkey,
@@ -426,7 +430,10 @@ class DesktopService {
           Uint32 Function(Uint32, Pointer<_Input>, Int32),
           int Function(int, Pointer<_Input>, int)
         >('SendInput');
-    final units = text.codeUnits;
+    final units = text
+        .replaceAll('\r\n', '\n')
+        .replaceAll('\r', '\n')
+        .codeUnits;
     // shortcut: SendInput cannot confirm field acceptance; use UI Automation when reliable.
     for (var offset = 0; offset < units.length;) {
       if (target == 0 || captureTarget() != target) {
@@ -444,11 +451,16 @@ class DesktopService {
       try {
         for (var i = 0; i < count; i++) {
           inputs[2 * i].type = 1;
-          inputs[2 * i].data.keyboard.scan = units[offset + i];
-          inputs[2 * i].data.keyboard.flags = 4;
+          final newline = units[offset + i] == 10;
+          inputs[2 * i].data.keyboard.key = newline ? 0x0d : 0;
+          inputs[2 * i].data.keyboard.scan = newline ? 0 : units[offset + i];
+          inputs[2 * i].data.keyboard.flags = newline ? 0 : 4;
           inputs[2 * i + 1].type = 1;
-          inputs[2 * i + 1].data.keyboard.scan = units[offset + i];
-          inputs[2 * i + 1].data.keyboard.flags = 6;
+          inputs[2 * i + 1].data.keyboard.key = newline ? 0x0d : 0;
+          inputs[2 * i + 1].data.keyboard.scan = newline
+              ? 0
+              : units[offset + i];
+          inputs[2 * i + 1].data.keyboard.flags = newline ? 2 : 6;
         }
         if (send(count * 2, inputs, sizeOf<_Input>()) != count * 2) {
           throw StateError(
@@ -489,7 +501,11 @@ class DesktopService {
         'The target window changed. The transcript is on the clipboard.',
       );
     }
-    await copyTranscript(text);
+    try {
+      await copyTranscript(text);
+    } catch (_) {
+      throw const PasteNotDispatched();
+    }
     if (captureTarget() != target) {
       throw StateError(
         'The target window changed. The transcript is on the clipboard.',
@@ -507,7 +523,9 @@ class DesktopService {
             Uint32 Function(Uint32, Pointer<_Input>, Int32),
             int Function(int, Pointer<_Input>, int)
           >('SendInput');
-      if (send(4, inputs, sizeOf<_Input>()) != 4) {
+      final sent = send(4, inputs, sizeOf<_Input>());
+      if (sent == 0) throw const PasteNotDispatched();
+      if (sent != 4) {
         throw StateError(
           'Windows could not paste the transcript. It is on the clipboard.',
         );

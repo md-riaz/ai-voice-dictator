@@ -34,13 +34,20 @@ class FlowDesktop implements DesktopService {
   String? pasted;
   String? typed;
   String? copied;
+  bool copyFails = false;
+  Object? pasteFailure;
   @override
-  Future<void> copyTranscript(String text) async => copied = text;
+  Future<void> copyTranscript(String text) async {
+    if (copyFails) throw StateError('Clipboard unavailable');
+    copied = text;
+  }
+
   @override
   int captureTarget() => target;
   @override
   Future<void> paste(String text, int target) async {
     expect(target, this.target);
+    if (pasteFailure != null) throw pasteFailure!;
     pasted = text;
   }
 
@@ -161,15 +168,30 @@ void main() {
     expect(desktop.copied, desktop.pasted);
     expect((await settings.history()).single.text, desktop.pasted);
   });
-  test('typing mode keeps multiline text safe on clipboard', () async {
+  test('typing mode delivers multiline text', () async {
     await settings.setTypeText(true);
     final desktop = FlowDesktop();
-    await expectLater(
-      runFlow(desktop, transcript: 'First line.\nSecond line.'),
-      throwsStateError,
-    );
+    await runFlow(desktop, transcript: 'First line.\nSecond line.');
+    expect(desktop.typed, 'First line.\nSecond line.');
+    expect(desktop.copied, desktop.typed);
+  });
+  test('falls back to typing when paste was not dispatched', () async {
+    final desktop = FlowDesktop()..pasteFailure = const PasteNotDispatched();
+    await runFlow(desktop);
+    expect(desktop.typed, 'Hello world.');
+    expect(desktop.pasted, isNull);
+  });
+  test('does not retry an uncertain paste', () async {
+    final desktop = FlowDesktop()
+      ..pasteFailure = StateError('partial dispatch');
+    await expectLater(runFlow(desktop), throwsStateError);
     expect(desktop.typed, isNull);
-    expect(desktop.copied, 'First line.\nSecond line.');
+  });
+  test('types when clipboard is unavailable but history is saved', () async {
+    final desktop = FlowDesktop()..copyFails = true;
+    await runFlow(desktop);
+    expect(desktop.typed, 'Hello world.');
+    expect((await settings.history()).single.text, 'Hello world.');
   });
   test('pastes into the current window when target changes', () async {
     final desktop = FlowDesktop();

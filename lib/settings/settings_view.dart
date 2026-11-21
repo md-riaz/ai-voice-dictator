@@ -508,7 +508,7 @@ class _SettingsViewState extends State<SettingsView> {
                                       Align(
                                         alignment: Alignment.centerLeft,
                                         child: Text(
-                                          'Language mode still applies.',
+                                          'The translation shortcut uses the target language.',
                                           style: theme.textTheme.bodySmall
                                               ?.copyWith(
                                                 color: colors.onSurfaceVariant,
@@ -863,7 +863,7 @@ class _SettingsViewState extends State<SettingsView> {
                                 ),
                               ),
                             if (_page == 0) const SizedBox(height: 16),
-                            if (_page == 0)
+                            if (_page == 3)
                               VeloraCard(
                                 elevated: false,
                                 color: colors.surfaceContainerLowest,
@@ -875,41 +875,9 @@ class _SettingsViewState extends State<SettingsView> {
                                       context,
                                       Icons.translate_rounded,
                                       'Language',
-                                      'Choose how your speech is transcribed.',
+                                      'Choose the target for the translation shortcut.',
                                     ),
                                     const SizedBox(height: 20),
-                                    Text(
-                                      'Language mode',
-                                      style: theme.textTheme.labelLarge,
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Semantics(
-                                      label: 'Language mode',
-                                      child: DropdownButtonFormField<String>(
-                                        initialValue: controller.language,
-                                        isExpanded: true,
-                                        items: const [
-                                          DropdownMenuItem(
-                                            value: 'auto',
-                                            child: Text('Auto detect'),
-                                          ),
-                                          DropdownMenuItem(
-                                            value: 'codeSwitching',
-                                            child: Text('Code switching'),
-                                          ),
-                                          DropdownMenuItem(
-                                            value: 'translate',
-                                            child: Text('Translate'),
-                                          ),
-                                        ],
-                                        onChanged: (value) {
-                                          if (value != null) {
-                                            controller.setLanguage(value);
-                                          }
-                                        },
-                                      ),
-                                    ),
-                                    const SizedBox(height: 14),
                                     Text(
                                       'Translation target language',
                                       style: theme.textTheme.labelLarge,

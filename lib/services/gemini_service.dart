@@ -31,6 +31,9 @@ Writing & Formatting Principles:
   "new paragraph", "নতুন প্যারা" for blank line), convert them to formatting and never output them as words.
 
 Vocabulary & Code-Switching:
+- Transcribe mixed-language speech word by word in each language's natural script.
+  Preserve spoken English in English and Bengali in Bengali; do not transliterate or translate
+  between them in dictation. Preserve other spoken languages in their natural scripts.
 - In non-translation mode, write Bengali naturally in Bengali script; render English
   technical terms, product names and acronyms in conventional English, even when spoken
   with a Bengali accent (Flutter, login, CPU, QR code, PHP-FPM, email, meeting, project,
@@ -208,20 +211,22 @@ class GeminiDictationService {
                 .timeout(const Duration(seconds: 25));
             if (streamedResponse.statusCode == 200) {
               final accumulated = StringBuffer();
-              await for (final line in streamedResponse.stream
-                  .transform(utf8.decoder)
-                  .transform(const LineSplitter())) {
+              await for (final line
+                  in streamedResponse.stream
+                      .transform(utf8.decoder)
+                      .transform(const LineSplitter())) {
                 if (line.startsWith('data: ')) {
                   final jsonStr = line.substring(6).trim();
                   if (jsonStr.isNotEmpty) {
                     try {
-                      final json =
-                          jsonDecode(jsonStr) as Map<String, dynamic>;
+                      final json = jsonDecode(jsonStr) as Map<String, dynamic>;
                       final candidates = json['candidates'] as List<dynamic>?;
-                      final content = candidates?.firstOrNull?['content']
-                          as Map<String, dynamic>?;
+                      final content =
+                          candidates?.firstOrNull?['content']
+                              as Map<String, dynamic>?;
                       final parts = content?['parts'] as List<dynamic>?;
-                      final chunkText = parts
+                      final chunkText =
+                          parts
                               ?.map((part) => part['text'] as String? ?? '')
                               .join() ??
                           '';
