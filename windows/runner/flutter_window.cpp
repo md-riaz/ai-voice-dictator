@@ -149,8 +149,12 @@ LRESULT CALLBACK HudProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) 
   }
   if (message == WM_PAINT) {
     PAINTSTRUCT paint;
-    HDC dc = BeginPaint(hwnd, &paint);
+    HDC window_dc = BeginPaint(hwnd, &paint);
     RECT bounds; GetClientRect(hwnd, &bounds);
+    HDC buffer_dc = CreateCompatibleDC(window_dc);
+    HBITMAP buffer = buffer_dc ? CreateCompatibleBitmap(window_dc, bounds.right, bounds.bottom) : nullptr;
+    HGDIOBJ old_bitmap = buffer ? SelectObject(buffer_dc, buffer) : nullptr;
+    HDC dc = buffer ? buffer_dc : window_dc;
     HBRUSH bg = CreateSolidBrush(RGB(248, 250, 252));
     FillRect(dc, &bounds, bg); DeleteObject(bg);
     const int cy = bounds.bottom / 2;
@@ -189,6 +193,12 @@ LRESULT CALLBACK HudProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) 
     RECT text = {55, 8, bounds.right - 16, bounds.bottom - 8};
     DrawTextW(dc, hud_text.c_str(), -1, &text, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS | DT_NOPREFIX);
     SelectObject(dc, oldFont); DeleteObject(font);
+    if (buffer) {
+      BitBlt(window_dc, 0, 0, bounds.right, bounds.bottom, buffer_dc, 0, 0, SRCCOPY);
+      SelectObject(buffer_dc, old_bitmap);
+      DeleteObject(buffer);
+    }
+    if (buffer_dc) DeleteDC(buffer_dc);
     EndPaint(hwnd, &paint); return 0;
   }
   if (message == WM_MOUSEACTIVATE) return MA_NOACTIVATE;
