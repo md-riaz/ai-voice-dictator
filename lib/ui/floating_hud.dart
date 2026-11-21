@@ -17,23 +17,23 @@ class FloatingHudOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     final (color, icon, title) = switch (state) {
       HudState.preparing => (
-        Colors.amberAccent,
+        const Color(0xFFF59E0B),
         Icons.mic_none,
         'Please wait before speaking…',
       ),
-      HudState.listening => (Colors.redAccent, Icons.mic, 'Speak now'),
+      HudState.listening => (const Color(0xFF4F46E5), Icons.mic, 'Speak now'),
       HudState.writing => (
-        Colors.cyanAccent,
+        const Color(0xFF4F46E5),
         Icons.hourglass_top_rounded,
         message.isNotEmpty ? message : 'Turning speech into text…',
       ),
       HudState.success => (
-        Colors.greenAccent,
+        const Color(0xFF10B981),
         Icons.check_circle_rounded,
         'Done',
       ),
       HudState.error => (
-        Colors.amberAccent,
+        const Color(0xFFF59E0B),
         Icons.warning_amber_rounded,
         message.isEmpty ? 'Error occurred' : message,
       ),
@@ -41,18 +41,15 @@ class FloatingHudOverlay extends StatelessWidget {
     final minutes = durationSeconds ~/ 60;
     final seconds = (durationSeconds % 60).toString().padLeft(2, '0');
     return Material(
-      color: const Color(0xFF171513),
+      color: Colors.transparent,
       child: Center(
         child: Container(
           constraints: const BoxConstraints(maxWidth: 520),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           decoration: BoxDecoration(
-            border: Border(
-              left: BorderSide(color: color, width: 4),
-              top: const BorderSide(color: Color(0xFF4A443C)),
-              right: const BorderSide(color: Color(0xFF4A443C)),
-              bottom: const BorderSide(color: Color(0xFF4A443C)),
-            ),
+            color: const Color(0xFFF8FAFC),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            borderRadius: BorderRadius.circular(32),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -63,7 +60,7 @@ class FloatingHudOverlay extends StatelessWidget {
                 child: Text(
                   title,
                   style: const TextStyle(
-                    color: Color(0xFFFFFBF4),
+                    color: Color(0xFF0F172A),
                     fontWeight: FontWeight.w700,
                   ),
                   maxLines: state == HudState.error ? 3 : 1,
@@ -75,7 +72,7 @@ class FloatingHudOverlay extends StatelessWidget {
                 Text(
                   '$minutes:$seconds',
                   style: const TextStyle(
-                    color: Color(0xFFD9CFC0),
+                    color: Color(0xFF64748B),
                     fontFeatures: [FontFeature.tabularFigures()],
                   ),
                 ),

@@ -19,6 +19,7 @@ OutputBaseFilename=AI-Voice-Dictator-v{#AppVersion}-Setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile=..\windows\runner\resources\app_icon.ico
 UninstallDisplayIcon={app}\AI-Voice-Dictator.exe
 
 [Files]

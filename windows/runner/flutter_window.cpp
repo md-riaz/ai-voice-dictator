@@ -14,7 +14,7 @@ HHOOK hook = nullptr;
 HWND key_window = nullptr;
 HWND hud_window = nullptr;
 std::wstring hud_text = L"Please wait before speaking...";
-COLORREF hud_color = RGB(255, 104, 104);
+COLORREF hud_color = RGB(79, 70, 229);
 bool hud_success = false;
 bool hud_writing = false;
 constexpr unsigned kCtrl = 1, kWin = 2, kAlt = 4, kShift = 8, kSpace = 16;
@@ -148,7 +148,7 @@ LRESULT CALLBACK HudProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) 
     PAINTSTRUCT paint;
     HDC dc = BeginPaint(hwnd, &paint);
     RECT bounds; GetClientRect(hwnd, &bounds);
-    HBRUSH bg = CreateSolidBrush(RGB(24, 24, 37));
+    HBRUSH bg = CreateSolidBrush(RGB(248, 250, 252));
     FillRect(dc, &bounds, bg); DeleteObject(bg);
     HBRUSH dot = CreateSolidBrush(hud_color);
     HGDIOBJ oldBrush = SelectObject(dc, dot);
@@ -157,7 +157,7 @@ LRESULT CALLBACK HudProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) 
     SelectObject(dc, oldBrush); SelectObject(dc, oldPen); DeleteObject(dot);
     if (hud_writing) {
       const double angle = (GetTickCount64() % 960) * 6.283185307179586 / 960;
-      HPEN pen = CreatePen(PS_SOLID, 2, RGB(245, 245, 250));
+      HPEN pen = CreatePen(PS_SOLID, 2, RGB(15, 23, 42));
       HGDIOBJ previous = SelectObject(dc, pen);
       Arc(dc, 18, 25, 33, 40,
           25 + static_cast<int>(7 * std::cos(angle)),
@@ -172,7 +172,7 @@ LRESULT CALLBACK HudProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) 
       MoveToEx(dc, 18, 32, nullptr); LineTo(dc, 23, 37); LineTo(dc, 33, 26);
       SelectObject(dc, previous); DeleteObject(pen);
     }
-    SetBkMode(dc, TRANSPARENT); SetTextColor(dc, RGB(245, 245, 250));
+    SetBkMode(dc, TRANSPARENT); SetTextColor(dc, RGB(15, 23, 42));
     HFONT font = CreateFontW(-17, 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE,
                             DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
                             CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
@@ -391,13 +391,13 @@ bool FlutterWindow::OnCreate() {
         hud_success = s && *s == "success";
         hud_writing = s && *s == "writing";
         if (s && *s == "preparing") {
-          hud_text = L"Please wait before speaking..."; hud_color = RGB(255, 194, 90);
+          hud_text = L"Please wait before speaking..."; hud_color = RGB(245, 158, 11);
         } else if (s && *s == "listening") {
           hud_text = L"Speak now  " + std::to_wstring(n ? *n / 60 : 0) + L":" + ((n && *n % 60 >= 10) ? L"" : L"0") + std::to_wstring(n ? *n % 60 : 0);
-          hud_color = RGB(255, 104, 104);
-        } else if (s && *s == "writing") { hud_text = L"Turning speech into text..."; hud_color = RGB(101, 210, 238); }
-        else if (s && *s == "success") { hud_text = L"Done"; hud_color = RGB(105, 220, 150); }
-        else if (s && *s == "error") { hud_text = m && !m->empty() ? Wide(*m) : L"Error occurred"; hud_color = RGB(255, 194, 90); }
+          hud_color = RGB(79, 70, 229);
+        } else if (s && *s == "writing") { hud_text = L"Turning speech into text..."; hud_color = RGB(79, 70, 229); }
+        else if (s && *s == "success") { hud_text = L"Done"; hud_color = RGB(16, 185, 129); }
+        else if (s && *s == "error") { hud_text = m && !m->empty() ? Wide(*m) : L"Error occurred"; hud_color = RGB(245, 158, 11); }
         UpdateHudAnimation();
         if (hud_window) InvalidateRect(hud_window, nullptr, TRUE);
       }

@@ -9,7 +9,7 @@ import 'ui/floating_hud.dart';
 
 const _voiceTheme = ui.VeloraThemePreset(
   name: 'AI Voice Dictator',
-  seed: Color(0xFF8B2018),
+  seed: Color(0xFF4F46E5),
 );
 
 ThemeData buildVoiceTheme(Brightness brightness) {
@@ -19,37 +19,44 @@ ThemeData buildVoiceTheme(Brightness brightness) {
   );
   final dark = brightness == Brightness.dark;
   final colors = theme.colorScheme.copyWith(
-    primary: dark ? const Color(0xFFFFB4A7) : const Color(0xFF8B2018),
-    onPrimary: dark ? const Color(0xFF5D0000) : Colors.white,
-    secondary: dark ? const Color(0xFFFFDCA8) : const Color(0xFF795A19),
-    onSecondary: dark ? const Color(0xFF422C00) : Colors.white,
+    primary: dark ? const Color(0xFFC4B5FD) : const Color(0xFF4F46E5),
+    onPrimary: dark ? const Color(0xFF312E81) : Colors.white,
+    primaryContainer: dark ? const Color(0xFF3730A3) : const Color(0xFFEEF2FF),
+    onPrimaryContainer: dark
+        ? const Color(0xFFEEF2FF)
+        : const Color(0xFF3730A3),
+    onSurface: dark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A),
+    onSurfaceVariant: dark ? const Color(0xFFCBD5E1) : const Color(0xFF64748B),
+    outlineVariant: dark ? const Color(0xFF475569) : const Color(0xFFE2E8F0),
+    secondary: dark ? const Color(0xFFC7D2FE) : const Color(0xFF3730A3),
+    onSecondary: dark ? const Color(0xFF1E1B4B) : Colors.white,
     tertiary: dark ? const Color(0xFFB9D7C1) : const Color(0xFF356A4B),
     onTertiary: dark ? const Color(0xFF003820) : Colors.white,
     error: dark ? const Color(0xFFFFB4AB) : const Color(0xFFBA1A1A),
     onError: dark ? const Color(0xFF690005) : Colors.white,
-    surface: dark ? const Color(0xFF171513) : const Color(0xFFF4F0E8),
+    surface: dark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
     surfaceContainerLowest: dark
-        ? const Color(0xFF100E0D)
-        : const Color(0xFFFFFBF4),
+        ? const Color(0xFF0B1120)
+        : const Color(0xFFFFFFFF),
     surfaceContainerLow: dark
-        ? const Color(0xFF211E1B)
-        : const Color(0xFFECE6DB),
-    surfaceContainer: dark ? const Color(0xFF2B2723) : const Color(0xFFE7E0D4),
+        ? const Color(0xFF1E293B)
+        : const Color(0xFFF1F5F9),
+    surfaceContainer: dark ? const Color(0xFF273449) : const Color(0xFFEEF2FF),
     surfaceContainerHigh: dark
-        ? const Color(0xFF36312C)
-        : const Color(0xFFE2D9CC),
+        ? const Color(0xFF334155)
+        : const Color(0xFFE2E8F0),
     surfaceContainerHighest: dark
-        ? const Color(0xFF403A34)
-        : const Color(0xFFD9CFC0),
+        ? const Color(0xFF475569)
+        : const Color(0xFFCBD5E1),
   );
   final tokens = theme.extension<ui.VeloraTokens>()!.copyWith(
     radiusMd: 6,
     radiusLg: 12,
-    success: dark ? const Color(0xFF91E0AD) : const Color(0xFF1E6B3A),
-    onSuccess: dark ? const Color(0xFF00391E) : Colors.white,
+    success: dark ? const Color(0xFF91E0AD) : const Color(0xFF10B981),
+    onSuccess: dark ? const Color(0xFF00391E) : const Color(0xFF052E16),
     warning: dark ? const Color(0xFFFFC56B) : const Color(0xFF805000),
     onWarning: dark ? const Color(0xFF452B00) : Colors.white,
-    info: dark ? const Color(0xFFFFDCA8) : const Color(0xFF795A19),
+    info: dark ? const Color(0xFFC7D2FE) : const Color(0xFF3730A3),
     onInfo: dark ? const Color(0xFF00315F) : Colors.white,
   );
   OutlineInputBorder inputBorder(Color color, [double width = 1]) =>

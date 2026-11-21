@@ -46,10 +46,10 @@ class DictationStats {
   });
 
   const DictationStats.empty()
-      : totalWords = 0,
-        totalDuration = Duration.zero,
-        totalSessions = 0,
-        days = const [];
+    : totalWords = 0,
+      totalDuration = Duration.zero,
+      totalSessions = 0,
+      days = const [];
 
   final int totalWords;
   final Duration totalDuration;
@@ -63,8 +63,10 @@ class DictationStats {
     if (totalWords <= 0) return Duration.zero;
     final typingSeconds = (totalWords / typingWpm) * 60.0;
     final speakingSeconds = totalDuration.inSeconds.toDouble();
-    final savedSeconds =
-        (typingSeconds - speakingSeconds).clamp(0.0, double.infinity);
+    final savedSeconds = (typingSeconds - speakingSeconds).clamp(
+      0.0,
+      double.infinity,
+    );
     return Duration(seconds: savedSeconds.round());
   }
 
@@ -129,6 +131,14 @@ class SettingsStore {
     } else {
       await _secure.write(key: 'gemini_api_key', value: key.trim());
     }
+  }
+
+  Future<void> enableAutoStartByDefault(
+    Future<void> Function(bool) setEnabled,
+  ) async {
+    if (_prefs.getBool('auto_start_initialized') == true) return;
+    await setEnabled(true);
+    await _prefs.setBool('auto_start_initialized', true);
   }
 
   String language() => _prefs.getString('language') ?? 'auto';
@@ -289,20 +299,22 @@ class SettingsStore {
       final text = row['text'] as String;
       final createdAtMs = row['created_at'] as int;
       final durationMs = row['duration_ms'] as int;
-      final words =
-          text.trim().isEmpty ? 0 : text.trim().split(RegExp(r'\s+')).length;
+      final words = text.trim().isEmpty
+          ? 0
+          : text.trim().split(RegExp(r'\s+')).length;
 
       totalWords += words;
       totalMs += durationMs;
 
       if (createdAtMs >= startMs) {
         final entryDate = DateTime.fromMillisecondsSinceEpoch(createdAtMs);
-        final dayKey =
-            DateTime(entryDate.year, entryDate.month, entryDate.day)
-                .millisecondsSinceEpoch;
+        final dayKey = DateTime(
+          entryDate.year,
+          entryDate.month,
+          entryDate.day,
+        ).millisecondsSinceEpoch;
         dayWordsMap[dayKey] = (dayWordsMap[dayKey] ?? 0) + words;
-        dayDurationMap[dayKey] =
-            (dayDurationMap[dayKey] ?? 0) + durationMs;
+        dayDurationMap[dayKey] = (dayDurationMap[dayKey] ?? 0) + durationMs;
       }
     }
 

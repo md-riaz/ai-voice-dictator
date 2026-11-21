@@ -4,7 +4,7 @@ Windows 10/11 Flutter desktop dictation using a personal Gemini API key and Velo
 
 ## Preview
 
-A preview of the workspace and the upcoming indigo theme.
+A preview of the workspace and its indigo theme.
 
 ![Workspace with the dictation playground and shortcut settings.](docs/images/theme-workspace.png)
 

@@ -76,6 +76,13 @@ class AppModule {
     module = AppModule._(settings, desktop, controller);
     await desktop.initialize(launchArguments: launchArguments);
     final errors = <String>[];
+    if (desktop.autoStartAvailable) {
+      try {
+        await settings.enableAutoStartByDefault(desktop.setAutoStart);
+      } catch (_) {
+        errors.add('Could not enable launch at sign-in. Check Setup.');
+      }
+    }
     if (desktop.hotkeysAvailable) {
       try {
         await desktop.registerShortcuts(

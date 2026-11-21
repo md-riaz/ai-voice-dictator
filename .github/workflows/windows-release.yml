@@ -2,6 +2,11 @@ name: Windows release
 
 on:
   workflow_dispatch:
+    inputs:
+      replace_existing:
+        description: 'Replace the existing release for this version'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -24,9 +29,8 @@ jobs:
           }
           $version = $Matches[1]
           if (git ls-remote --exit-code --tags origin "refs/tags/v$version") {
-            throw "Tag v$version already exists. Update pubspec.yaml before releasing."
-          }
-          if ($LASTEXITCODE -ne 2) { throw 'Could not check remote tags.' }
+            if ('${{ inputs.replace_existing }}' -ne 'true') { throw "Tag v$version already exists. Update pubspec.yaml before releasing." }
+          } elseif ($LASTEXITCODE -ne 2) { throw 'Could not check remote tags.' }
           $global:LASTEXITCODE = 0
           "value=$version" >> $env:GITHUB_OUTPUT
 
@@ -72,5 +76,14 @@ jobs:
         run: |
           $assets = @(Get-ChildItem dist -File | ForEach-Object { $_.FullName })
           if ($assets.Count -ne 1 -or $assets[0] -notlike '*-Setup.exe') { throw 'Expected the Windows setup executable.' }
-          gh release create "v$env:APP_VERSION" @assets --target $env:GITHUB_SHA --title "AI Voice Dictator v$env:APP_VERSION" --notes 'Download and run the Windows x64 Setup.exe installer.'
+          if ('${{ inputs.replace_existing }}' -eq 'true') {
+            gh release view "v$env:APP_VERSION" | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw 'Existing release not found.' }
+            gh release upload "v$env:APP_VERSION" @assets --clobber
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            git tag -f "v$env:APP_VERSION" $env:GITHUB_SHA
+            git push origin "refs/tags/v$env:APP_VERSION" --force
+          } else {
+            gh release create "v$env:APP_VERSION" @assets --target $env:GITHUB_SHA --title "AI Voice Dictator v$env:APP_VERSION" --notes 'Download and run the Windows x64 Setup.exe installer.'
+          }
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

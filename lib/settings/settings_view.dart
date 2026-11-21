@@ -72,9 +72,8 @@ class _SettingsViewState extends State<SettingsView> {
     try {
       await controller.saveModel();
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Gemini model saved.')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Gemini model saved.')));
       }
     } on FormatException {
       if (mounted) {
@@ -318,8 +317,7 @@ class _SettingsViewState extends State<SettingsView> {
                                             : controller.keyStatus.startsWith(
                                                     'Validation failed',
                                                   ) ||
-                                                  controller.keyStatus ==
-                                                      'Could not check connection'
+                                                  controller.keyStatus == 'Could not check connection'
                                             ? VeloraStatus.error
                                             : VeloraStatus.info,
                                       ),
@@ -716,9 +714,7 @@ class _SettingsViewState extends State<SettingsView> {
                                           child: Semantics(
                                             liveRegion: true,
                                             child: Text(
-                                              active
-                                                  ? status
-                                                  : 'READY  •  Awaiting shortcut',
+                                              active ? status : 'READY  •  Awaiting shortcut',
                                               style: theme.textTheme.labelLarge
                                                   ?.copyWith(
                                                     fontWeight: FontWeight.w800,
@@ -729,23 +725,6 @@ class _SettingsViewState extends State<SettingsView> {
                                         );
                                       }),
                                   ],
-                                ),
-                              ),
-                            if (_page == 0) const SizedBox(height: 16),
-                            if (_page == 0)
-                              VeloraCard(
-                                elevated: false,
-                                color: colors.surfaceContainerLowest,
-                                child: SwitchListTile(
-                                  title: const Text(
-                                    'Type text instead of pasting',
-                                  ),
-                                  subtitle: const Text(
-                                    'Try this for fields that block paste. Check the focused field; typing and paste cannot be verified in every app.',
-                                  ),
-                                  value: controller.typeText,
-                                  onChanged: (value) =>
-                                      controller.setTypeText(value),
                                 ),
                               ),
                             if (_page == 0) const SizedBox(height: 16),
@@ -1054,6 +1033,24 @@ class _SettingsViewState extends State<SettingsView> {
                                 padding: const EdgeInsets.all(24),
                                 child: SwitchListTile(
                                   contentPadding: EdgeInsets.zero,
+                                  title: const Text(
+                                    'Type text instead of pasting',
+                                  ),
+                                  subtitle: const Text(
+                                    'Try this for fields that block paste. Check the focused field; typing and paste cannot be verified in every app.',
+                                  ),
+                                  value: controller.typeText,
+                                  onChanged: controller.setTypeText,
+                                ),
+                              ),
+                            if (_page == 3) const SizedBox(height: 16),
+                            if (_page == 3)
+                              VeloraCard(
+                                elevated: false,
+                                color: colors.surfaceContainerLowest,
+                                padding: const EdgeInsets.all(24),
+                                child: SwitchListTile(
+                                  contentPadding: EdgeInsets.zero,
                                   title: const Text('Launch at sign-in'),
                                   subtitle: Text(
                                     controller.autoStart == null
@@ -1112,11 +1109,66 @@ class _SettingsViewState extends State<SettingsView> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    _heading(
-                                      context,
-                                      Icons.history_rounded,
-                                      'Recent dictations',
-                                      'Your latest transcripts are stored locally.',
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(
+                                          child: _heading(
+                                            context,
+                                            Icons.history_rounded,
+                                            'Recent dictations',
+                                            'Your latest transcripts are stored locally.',
+                                          ),
+                                        ),
+                                        if (controller.history.isNotEmpty)
+                                          TextButton.icon(
+                                            onPressed: () async {
+                                              final confirmed =
+                                                  await showDialog<bool>(
+                                                    context: context,
+                                                    builder: (context) =>
+                                                        AlertDialog(
+                                                          title: const Text(
+                                                            'Clear all history?',
+                                                          ),
+                                                          content: const Text(
+                                                            'All saved transcripts will be permanently deleted from this device.',
+                                                          ),
+                                                          actions: [
+                                                            TextButton(
+                                                              onPressed: () =>
+                                                                  Navigator.pop(
+                                                                    context,
+                                                                    false,
+                                                                  ),
+                                                              child: const Text(
+                                                                'Cancel',
+                                                              ),
+                                                            ),
+                                                            TextButton(
+                                                              onPressed: () =>
+                                                                  Navigator.pop(
+                                                                    context,
+                                                                    true,
+                                                                  ),
+                                                              child: const Text(
+                                                                'Clear history',
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                  );
+                                              if (confirmed == true) {
+                                                await controller.clearHistory();
+                                              }
+                                            },
+                                            icon: const Icon(
+                                              Icons.delete_outline,
+                                            ),
+                                            label: const Text('Clear history'),
+                                          ),
+                                      ],
                                     ),
                                     const SizedBox(height: 12),
                                     const Text('Keep history'),
@@ -1198,47 +1250,6 @@ class _SettingsViewState extends State<SettingsView> {
                                           : 'Older entries are deleted when a new dictation is saved.',
                                     ),
                                     const SizedBox(height: 12),
-                                    if (controller.history.isNotEmpty)
-                                      TextButton.icon(
-                                        onPressed: () async {
-                                          final confirmed = await showDialog<bool>(
-                                            context: context,
-                                            builder: (context) => AlertDialog(
-                                              title: const Text(
-                                                'Clear all history?',
-                                              ),
-                                              content: const Text(
-                                                'All saved transcripts will be permanently deleted from this device.',
-                                              ),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed: () =>
-                                                      Navigator.pop(
-                                                        context,
-                                                        false,
-                                                      ),
-                                                  child: const Text('Cancel'),
-                                                ),
-                                                TextButton(
-                                                  onPressed: () =>
-                                                      Navigator.pop(
-                                                        context,
-                                                        true,
-                                                      ),
-                                                  child: const Text(
-                                                    'Clear history',
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          );
-                                          if (confirmed == true) {
-                                            await controller.clearHistory();
-                                          }
-                                        },
-                                        icon: const Icon(Icons.delete_outline),
-                                        label: const Text('Clear history'),
-                                      ),
                                     if (controller.history.isEmpty)
                                       Text(
                                         'No dictations yet.',
@@ -1272,26 +1283,24 @@ class _SettingsViewState extends State<SettingsView> {
                                                 ),
                                               );
                                               if (!context.mounted) return;
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                const SnackBar(
-                                                  content: Text(
-                                                    'Copied to clipboard.',
-                                                  ),
-                                                ),
-                                              );
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text(
+                                                        'Copied to clipboard.',
+                                                      ),
+                                                    ),
+                                                  );
                                             } catch (_) {
                                               if (!context.mounted) return;
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                const SnackBar(
-                                                  content: Text(
-                                                    'Could not copy to clipboard.',
-                                                  ),
-                                                ),
-                                              );
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text(
+                                                        'Could not copy to clipboard.',
+                                                      ),
+                                                    ),
+                                                  );
                                             }
                                           },
                                         ),
