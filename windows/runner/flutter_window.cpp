@@ -3,6 +3,7 @@
 #include <optional>
 #include <cmath>
 #include <cassert>
+#include <algorithm>
 #include <flutter/method_channel.h>
 #include <flutter/standard_method_codec.h>
 
@@ -17,6 +18,8 @@ std::wstring hud_text = L"Please wait before speaking...";
 COLORREF hud_color = RGB(79, 70, 229);
 bool hud_success = false;
 bool hud_writing = false;
+bool hud_preparing = false;
+bool hud_listening = false;
 constexpr unsigned kCtrl = 1, kWin = 2, kAlt = 4, kShift = 8, kSpace = 16;
 unsigned hold_chord = kCtrl | kWin;
 unsigned translation_chord = kCtrl | kWin | kAlt;
@@ -150,39 +153,41 @@ LRESULT CALLBACK HudProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) 
     RECT bounds; GetClientRect(hwnd, &bounds);
     HBRUSH bg = CreateSolidBrush(RGB(248, 250, 252));
     FillRect(dc, &bounds, bg); DeleteObject(bg);
-    HBRUSH dot = CreateSolidBrush(hud_color);
-    HGDIOBJ oldBrush = SelectObject(dc, dot);
-    HGDIOBJ oldPen = SelectObject(dc, GetStockObject(NULL_PEN));
-    if (!hud_success && !hud_writing) Ellipse(dc, 18, 25, 32, 39);
-    SelectObject(dc, oldBrush); SelectObject(dc, oldPen); DeleteObject(dot);
-    if (hud_writing) {
+    const int cy = bounds.bottom / 2;
+    HPEN border = CreatePen(PS_SOLID, 1, RGB(199, 210, 254));
+    HGDIOBJ oldPen = SelectObject(dc, border);
+    HGDIOBJ oldBrush = SelectObject(dc, GetStockObject(NULL_BRUSH));
+    RoundRect(dc, 0, 0, bounds.right - 1, bounds.bottom - 1, 32, 32);
+    SelectObject(dc, oldBrush); SelectObject(dc, oldPen); DeleteObject(border);
+    HPEN iconPen = CreatePen(PS_SOLID, 3, hud_color);
+    oldPen = SelectObject(dc, iconPen);
+    if (hud_preparing || hud_writing) {
       const double angle = (GetTickCount64() % 960) * 6.283185307179586 / 960;
-      HPEN pen = CreatePen(PS_SOLID, 2, RGB(15, 23, 42));
-      HGDIOBJ previous = SelectObject(dc, pen);
-      Arc(dc, 18, 25, 33, 40,
-          25 + static_cast<int>(7 * std::cos(angle)),
-          32 + static_cast<int>(7 * std::sin(angle)),
-          25 + static_cast<int>(7 * std::cos(angle + 1.5)),
-          32 + static_cast<int>(7 * std::sin(angle + 1.5)));
-      SelectObject(dc, previous); DeleteObject(pen);
+      Arc(dc, 20, cy - 10, 40, cy + 10,
+          30 + static_cast<int>(10 * std::cos(angle)),
+          cy + static_cast<int>(10 * std::sin(angle)),
+          30 + static_cast<int>(10 * std::cos(angle + 1.5)),
+          cy + static_cast<int>(10 * std::sin(angle + 1.5)));
+    } else if (hud_listening) {
+      const int heights[] = {3, 6, 10, 6, 3};
+      for (int i = 0; i < 5; ++i) {
+        MoveToEx(dc, 20 + i * 5, cy - heights[i], nullptr);
+        LineTo(dc, 20 + i * 5, cy + heights[i]);
+      }
+    } else if (hud_success) {
+      MoveToEx(dc, 20, cy, nullptr); LineTo(dc, 26, cy + 6); LineTo(dc, 40, cy - 8);
+    } else {
+      MoveToEx(dc, 30, cy - 8, nullptr); LineTo(dc, 30, cy + 4);
+      Ellipse(dc, 28, cy + 7, 32, cy + 11);
     }
-    if (hud_success) {
-      HPEN pen = CreatePen(PS_SOLID, 3, hud_color);
-      HGDIOBJ previous = SelectObject(dc, pen);
-      MoveToEx(dc, 18, 32, nullptr); LineTo(dc, 23, 37); LineTo(dc, 33, 26);
-      SelectObject(dc, previous); DeleteObject(pen);
-    }
+    SelectObject(dc, oldPen); DeleteObject(iconPen);
     SetBkMode(dc, TRANSPARENT); SetTextColor(dc, RGB(15, 23, 42));
-    HFONT font = CreateFontW(-17, 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE,
+    HFONT font = CreateFontW(-16, 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE,
                             DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
                             CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
     HGDIOBJ oldFont = SelectObject(dc, font);
-    RECT measured = {45, 0, bounds.right - 14, 0};
-    DrawTextW(dc, hud_text.c_str(), -1, &measured, DT_LEFT | DT_WORDBREAK | DT_CALCRECT | DT_NOPREFIX);
-    const int height = measured.bottom - measured.top;
-    const LONG top = (bounds.bottom - height) / 2;
-    RECT text = {45, top > 4 ? top : 4, bounds.right - 14, bounds.bottom - 4};
-    DrawTextW(dc, hud_text.c_str(), -1, &text, DT_LEFT | DT_WORDBREAK | DT_END_ELLIPSIS | DT_NOPREFIX);
+    RECT text = {55, 8, bounds.right - 16, bounds.bottom - 8};
+    DrawTextW(dc, hud_text.c_str(), -1, &text, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS | DT_NOPREFIX);
     SelectObject(dc, oldFont); DeleteObject(font);
     EndPaint(hwnd, &paint); return 0;
   }
@@ -198,7 +203,6 @@ bool CreateHud() {
       wc.lpszClassName, L"Dictation status", WS_POPUP, 0, 0, 340, 64, nullptr, nullptr, wc.hInstance, nullptr);
   if (!hud_window) return false;
   SetLayeredWindowAttributes(hud_window, 0, 240, LWA_ALPHA);
-  SetWindowRgn(hud_window, CreateRoundRectRgn(0, 0, 341, 65, 32, 32), TRUE);
   return true;
 }
 
@@ -212,8 +216,20 @@ void ShowHud() {
   } else {
     SystemParametersInfoW(SPI_GETWORKAREA, 0, &work, 0);
   }
-  SetWindowPos(hud_window, HWND_TOPMOST, work.left + (work.right - work.left - 340) / 2,
-               work.bottom - 96, 340, 64, SWP_NOACTIVATE | SWP_SHOWWINDOW);
+  HDC dc = GetDC(hud_window);
+  HFONT font = CreateFontW(-16, 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE,
+                           DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+                           CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
+  HGDIOBJ oldFont = SelectObject(dc, font);
+  RECT measured = {0, 0, 0, 0};
+  DrawTextW(dc, hud_text.c_str(), -1, &measured, DT_SINGLELINE | DT_CALCRECT | DT_NOPREFIX);
+  SelectObject(dc, oldFont); DeleteObject(font); ReleaseDC(hud_window, dc);
+  const int width = (std::min)((std::min)((std::max)(340, static_cast<int>(measured.right + 71)), 560),
+                               static_cast<int>(work.right - work.left));
+  const int height = 64;
+  SetWindowRgn(hud_window, CreateRoundRectRgn(0, 0, width + 1, height + 1, 32, 32), TRUE);
+  SetWindowPos(hud_window, HWND_TOPMOST, work.left + (work.right - work.left - width) / 2,
+               work.bottom - height - 32, width, height, SWP_NOACTIVATE | SWP_SHOWWINDOW);
   InvalidateRect(hud_window, nullptr, TRUE);
 }
 
@@ -222,7 +238,7 @@ void UpdateHudAnimation() {
   KillTimer(hud_window, kHudTimer);
   BOOL animations_enabled = TRUE;
   SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, &animations_enabled, 0);
-  if (hud_writing && IsWindowVisible(hud_window) && animations_enabled) {
+  if ((hud_writing || hud_preparing) && IsWindowVisible(hud_window) && animations_enabled) {
     SetTimer(hud_window, kHudTimer, 60, nullptr);
   }
 }
@@ -388,18 +404,20 @@ bool FlutterWindow::OnCreate() {
         const std::string* s = state == args->end() ? nullptr : std::get_if<std::string>(&state->second);
         const std::string* m = message == args->end() ? nullptr : std::get_if<std::string>(&message->second);
         const int32_t* n = seconds == args->end() ? nullptr : std::get_if<int32_t>(&seconds->second);
+        hud_preparing = s && *s == "preparing";
+        hud_listening = s && *s == "listening";
         hud_success = s && *s == "success";
         hud_writing = s && *s == "writing";
         if (s && *s == "preparing") {
-          hud_text = L"Please wait before speaking..."; hud_color = RGB(245, 158, 11);
+          hud_text = L"Preparing..."; hud_color = RGB(79, 70, 229);
         } else if (s && *s == "listening") {
-          hud_text = L"Speak now  " + std::to_wstring(n ? *n / 60 : 0) + L":" + ((n && *n % 60 >= 10) ? L"" : L"0") + std::to_wstring(n ? *n % 60 : 0);
+          hud_text = L"Listening...  " + std::to_wstring(n ? *n / 60 : 0) + L":" + ((n && *n % 60 >= 10) ? L"" : L"0") + std::to_wstring(n ? *n % 60 : 0);
           hud_color = RGB(79, 70, 229);
-        } else if (s && *s == "writing") { hud_text = L"Turning speech into text..."; hud_color = RGB(79, 70, 229); }
+        } else if (s && *s == "writing") { hud_text = m && !m->empty() ? Wide(*m) : L"Turning speech into text..."; hud_color = RGB(79, 70, 229); }
         else if (s && *s == "success") { hud_text = L"Done"; hud_color = RGB(16, 185, 129); }
         else if (s && *s == "error") { hud_text = m && !m->empty() ? Wide(*m) : L"Error occurred"; hud_color = RGB(245, 158, 11); }
         UpdateHudAnimation();
-        if (hud_window) InvalidateRect(hud_window, nullptr, TRUE);
+        if (hud_window && IsWindowVisible(hud_window)) ShowHud();
       }
       result->Success();
     } else {

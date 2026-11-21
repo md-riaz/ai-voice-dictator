@@ -201,10 +201,11 @@ class GeminiDictationService {
               Uri.https(
                 'generativelanguage.googleapis.com',
                 '/v1beta/models/$model:streamGenerateContent',
-                {'alt': 'sse', 'key': apiKey},
+                {'alt': 'sse'},
               ),
             );
             request.headers['Content-Type'] = 'application/json';
+            request.headers['x-goog-api-key'] = apiKey;
             request.body = body;
             final streamedResponse = await client
                 .send(request)

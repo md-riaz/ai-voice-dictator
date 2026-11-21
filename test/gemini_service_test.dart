@@ -17,6 +17,46 @@ void main() {
   });
   tearDown(() => dir.delete(recursive: true));
 
+  test('streaming sends the key in a header and delivers chunks', () async {
+    final client = MockClient((request) async {
+      expect(request.url.path, contains(':streamGenerateContent'));
+      expect(request.url.queryParameters, {'alt': 'sse'});
+      expect(request.headers['x-goog-api-key'], 'secret');
+      return http.Response(
+        'data: ${jsonEncode({
+          'candidates': [
+            {
+              'content': {
+                'parts': [
+                  {'text': 'Hello'},
+                ],
+              },
+            },
+          ],
+        })}\n\n'
+        'data: ${jsonEncode({
+          'candidates': [
+            {
+              'content': {
+                'parts': [
+                  {'text': ' world.'},
+                ],
+              },
+            },
+          ],
+        })}\n\n',
+        200,
+      );
+    });
+    final chunks = <String>[];
+    final service = GeminiDictationService('secret', client: client);
+    expect(
+      await service.transcribe(audio, 3, onChunk: chunks.add),
+      'Hello world.',
+    );
+    expect(chunks, ['Hello', 'Hello world.']);
+  });
+
   test('default prompts include multiline examples in every language mode', () {
     for (final mode in DictationLanguageMode.values) {
       final prompt = LanguagePromptBuilder.buildSystemPrompt(mode: mode);

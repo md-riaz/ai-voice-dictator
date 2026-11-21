@@ -36,8 +36,7 @@ class FakeSettings implements SettingsStore {
   @override
   bool streamPreview() => savedStreamPreview;
   @override
-  Future<void> setStreamPreview(bool value) async =>
-      savedStreamPreview = value;
+  Future<void> setStreamPreview(bool value) async => savedStreamPreview = value;
   String savedModel = SettingsStore.defaultModel;
   @override
   String model() => savedModel;
@@ -120,6 +119,7 @@ class FakeSettings implements SettingsStore {
       ),
     );
   }
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -362,18 +362,6 @@ void main() {
     );
     await tester.pumpAndSettle();
     final field = find.byKey(const ValueKey('dictation-playground'));
-    final statusSemantics = tester.widget<Semantics>(
-      find
-          .ancestor(
-            of: find.text('READY  •  Awaiting shortcut'),
-            matching: find.byWidgetPredicate(
-              (widget) =>
-                  widget is Semantics && widget.properties.liveRegion == true,
-            ),
-          )
-          .first,
-    );
-    expect(statusSemantics.properties.liveRegion, true);
     await tester.scrollUntilVisible(
       field,
       250,
@@ -516,7 +504,9 @@ void main() {
     expect(find.text('Words per week'), findsOneWidget);
     expect(find.text('Productivity insights'), findsOneWidget);
   });
-  testWidgets('stats view displays empty state when no history exists', (tester) async {
+  testWidgets('stats view displays empty state when no history exists', (
+    tester,
+  ) async {
     final store = FakeSettings()..testHistory = [];
     final controller = SettingsController(
       store: store,

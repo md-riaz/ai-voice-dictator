@@ -2,11 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:velora_ui/velora_ui.dart';
-import 'package:velora/velora.dart' as vx;
 
 import '../dictation_controller.dart';
 import '../services/desktop_service.dart' show normalizeWindowsLineEndings;
-import '../ui/floating_hud.dart';
 import 'settings_controller.dart';
 import 'settings_store.dart';
 
@@ -665,65 +663,6 @@ class _SettingsViewState extends State<SettingsView> {
                                         ),
                                       ),
                                     ),
-                                    if (widget.dictation != null)
-                                      vx.Obx(() {
-                                        final dictation = widget.dictation!;
-                                        final status =
-                                            switch (dictation.hud.value) {
-                                              HudState.preparing =>
-                                                'Please wait before speaking…',
-                                              HudState.listening => 'Speak now',
-                                              HudState.writing =>
-                                                'Turning speech into text…',
-                                              HudState.success => 'Done',
-                                              HudState.error =>
-                                                dictation.message.value,
-                                            };
-                                        final active =
-                                            dictation.recording.value ||
-                                            dictation.hud.value ==
-                                                HudState.preparing ||
-                                            dictation.hud.value ==
-                                                HudState.writing ||
-                                            dictation.hud.value ==
-                                                HudState.error ||
-                                            dictation.hud.value ==
-                                                HudState.success;
-                                        return Container(
-                                          width: double.infinity,
-                                          margin: const EdgeInsets.only(
-                                            top: 12,
-                                          ),
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 10,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: active
-                                                ? colors.primaryContainer
-                                                : colors.surfaceContainerLow,
-                                            border: Border(
-                                              left: BorderSide(
-                                                color: active
-                                                    ? colors.primary
-                                                    : colors.secondary,
-                                                width: 3,
-                                              ),
-                                            ),
-                                          ),
-                                          child: Semantics(
-                                            liveRegion: true,
-                                            child: Text(
-                                              active ? status : 'READY  •  Awaiting shortcut',
-                                              style: theme.textTheme.labelLarge
-                                                  ?.copyWith(
-                                                    fontWeight: FontWeight.w800,
-                                                    letterSpacing: .4,
-                                                  ),
-                                            ),
-                                          ),
-                                        );
-                                      }),
                                   ],
                                 ),
                               ),
