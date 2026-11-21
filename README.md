@@ -4,23 +4,9 @@ Windows 10/11 Flutter desktop dictation using a personal Gemini API key and Velo
 
 ## Preview
 
-These previews show the workspace through a dictation session. They are rendered from the app interface with simulated states and example text. The indigo theme shown here is a preview of an upcoming update.
+A preview of the workspace and the upcoming indigo theme.
 
-**1. Ready:** Open the workspace to practise dictation and check the keyboard shortcuts.
-
-![Workspace ready for dictation, with the playground and shortcut settings.](docs/images/theme-workspace.png)
-
-**2. Dictating:** Focus the playground and hold the dictation shortcut. The status changes to “Speak now”.
-
-![Workspace showing the Speak now recording status.](docs/images/theme-dictating.png)
-
-**3. Processing:** Release the shortcut. The app sends the recording to Gemini and shows “Turning speech into text”.
-
-![Workspace showing the speech-to-text processing status.](docs/images/theme-processing.png)
-
-**4. Complete:** The transcript appears in the playground and the status changes to “Done”. The image below shows the current released theme.
-
-![Workspace showing an example transcript and the Done status.](docs/images/completed-preview.png)
+![Workspace with the dictation playground and shortcut settings.](docs/images/theme-workspace.png)
 
 You can also dictate in other applications with the global shortcuts while a small floating overlay shows recording and processing progress. The completed transcript is copied to the clipboard and saved in local history.
 
