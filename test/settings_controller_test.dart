@@ -304,7 +304,7 @@ void main() {
     expect(find.text('Gemini connection'), findsOneWidget);
     expect(find.text('Open Google AI Studio API keys'), findsOneWidget);
     expect(find.textContaining('not the project ID'), findsOneWidget);
-    expect(find.text('Try dictation'), findsNothing);
+    expect(find.text('Your workspace'), findsNothing);
     await tester.tap(find.text('Home'));
     await tester.pumpAndSettle();
     expect(find.text('Gemini connection'), findsOneWidget);
@@ -313,7 +313,7 @@ void main() {
     await tester.pump();
     service.validation.complete(200);
     await tester.pumpAndSettle();
-    expect(find.text('Try dictation'), findsOneWidget);
+    expect(find.text('Your workspace'), findsOneWidget);
   });
   testWidgets('settings opens when device enumeration stalls', (tester) async {
     final service = FakeSettingsService()
@@ -361,7 +361,7 @@ void main() {
     final statusSemantics = tester.widget<Semantics>(
       find
           .ancestor(
-            of: find.text('Ready'),
+            of: find.text('READY  •  Awaiting shortcut'),
             matching: find.byWidgetPredicate(
               (widget) =>
                   widget is Semantics && widget.properties.liveRegion == true,
@@ -415,7 +415,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Try dictation'), findsOneWidget);
+    expect(find.text('Your workspace'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
   testWidgets('history and setup have no extra close button', (tester) async {
