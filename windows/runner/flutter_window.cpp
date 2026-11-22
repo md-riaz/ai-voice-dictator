@@ -20,6 +20,8 @@ bool hud_success = false;
 bool hud_writing = false;
 bool hud_preparing = false;
 bool hud_listening = false;
+double hud_level = 0;
+bool hud_timer_running = false;
 constexpr unsigned kCtrl = 1, kWin = 2, kAlt = 4, kShift = 8, kSpace = 16;
 unsigned hold_chord = kCtrl | kWin;
 unsigned translation_chord = kCtrl | kWin | kAlt;
@@ -114,21 +116,28 @@ constexpr bool HasVisibleTitleBar(const RECT& window, const RECT& work) {
   return right - left >= 64 && bottom - top >= 24;
 }
 
+constexpr bool HasUsableWindowSize(const RECT& window) {
+  return window.right - window.left >= 600 && window.bottom - window.top >= 400;
+}
+
 static_assert(HasVisibleTitleBar({100, 100, 900, 700}, {0, 0, 1920, 1080}));
 static_assert(!HasVisibleTitleBar({2000, 100, 2800, 700}, {0, 0, 1920, 1080}));
 static_assert(!HasVisibleTitleBar({100, -100, 900, 500}, {0, 0, 1920, 1080}));
+static_assert(!HasUsableWindowSize({0, 0, 180, 45}));
+static_assert(HasUsableWindowSize({0, 0, 900, 700}));
 
 void EnsureWindowVisible() {
   RECT bounds;
   if (!GetWindowRect(key_window, &bounds)) return;
   HMONITOR monitor = MonitorFromWindow(key_window, MONITOR_DEFAULTTONEAREST);
   MONITORINFO info = {sizeof(info)};
-  if (!monitor || !GetMonitorInfoW(monitor, &info) ||
-      HasVisibleTitleBar(bounds, info.rcWork)) return;
+  if (!monitor || !GetMonitorInfoW(monitor, &info)) return;
   const LONG work_width = info.rcWork.right - info.rcWork.left;
   const LONG work_height = info.rcWork.bottom - info.rcWork.top;
-  const LONG width = bounds.right - bounds.left < work_width ? bounds.right - bounds.left : work_width;
-  const LONG height = bounds.bottom - bounds.top < work_height ? bounds.bottom - bounds.top : work_height;
+  if (HasVisibleTitleBar(bounds, info.rcWork) &&
+      (HasUsableWindowSize(bounds) || (work_width < 600 || work_height < 400))) return;
+  const LONG width = (std::min)((std::max)(bounds.right - bounds.left, 600L), work_width);
+  const LONG height = (std::min)((std::max)(bounds.bottom - bounds.top, 400L), work_height);
   SetWindowPos(key_window, nullptr, info.rcWork.left + (work_width - width) / 2,
                info.rcWork.top + (work_height - height) / 2, width, height,
                SWP_NOZORDER | SWP_NOACTIVATE);
@@ -143,6 +152,7 @@ std::wstring Wide(const std::string& text) {
 }
 
 LRESULT CALLBACK HudProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
+  if (message == WM_ERASEBKGND) return 1;
   if (message == WM_TIMER && wparam == kHudTimer) {
     InvalidateRect(hwnd, nullptr, FALSE);
     return 0;
@@ -175,8 +185,9 @@ LRESULT CALLBACK HudProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) 
     } else if (hud_listening) {
       const int heights[] = {3, 6, 10, 6, 3};
       for (int i = 0; i < 5; ++i) {
-        MoveToEx(dc, 20 + i * 5, cy - heights[i], nullptr);
-        LineTo(dc, 20 + i * 5, cy + heights[i]);
+        const int height = 1 + static_cast<int>(heights[i] * hud_level);
+        MoveToEx(dc, 20 + i * 5, cy - height, nullptr);
+        LineTo(dc, 20 + i * 5, cy + height);
       }
     } else if (hud_success) {
       MoveToEx(dc, 20, cy, nullptr); LineTo(dc, 26, cy + 6); LineTo(dc, 40, cy - 8);
@@ -240,16 +251,17 @@ void ShowHud() {
   SetWindowRgn(hud_window, CreateRoundRectRgn(0, 0, width + 1, height + 1, 32, 32), TRUE);
   SetWindowPos(hud_window, HWND_TOPMOST, work.left + (work.right - work.left - width) / 2,
                work.bottom - height - 32, width, height, SWP_NOACTIVATE | SWP_SHOWWINDOW);
-  InvalidateRect(hud_window, nullptr, TRUE);
+  InvalidateRect(hud_window, nullptr, FALSE);
 }
 
 void UpdateHudAnimation() {
   if (!hud_window) return;
-  KillTimer(hud_window, kHudTimer);
-  BOOL animations_enabled = TRUE;
-  SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, &animations_enabled, 0);
-  if ((hud_writing || hud_preparing) && IsWindowVisible(hud_window) && animations_enabled) {
-    SetTimer(hud_window, kHudTimer, 60, nullptr);
+  const bool animate = (hud_writing || hud_preparing) && IsWindowVisible(hud_window);
+  if (animate && !hud_timer_running) {
+    hud_timer_running = SetTimer(hud_window, kHudTimer, 60, nullptr) != 0;
+  } else if (!animate && hud_timer_running) {
+    KillTimer(hud_window, kHudTimer);
+    hud_timer_running = false;
   }
 }
 
@@ -403,7 +415,18 @@ bool FlutterWindow::OnCreate() {
     } else if (call.method_name() == "showHud") {
       ShowHud(); UpdateHudAnimation(); result->Success();
     } else if (call.method_name() == "hideHud") {
-      if (hud_window) { KillTimer(hud_window, kHudTimer); ShowWindow(hud_window, SW_HIDE); }
+      if (hud_window) { KillTimer(hud_window, kHudTimer); hud_timer_running = false; ShowWindow(hud_window, SW_HIDE); }
+      result->Success();
+    } else if (call.method_name() == "updateHudLevel") {
+      const auto* args = std::get_if<flutter::EncodableMap>(call.arguments());
+      if (args) {
+        const auto level = args->find(flutter::EncodableValue("level"));
+        const double* value = level == args->end() ? nullptr : std::get_if<double>(&level->second);
+        if (value && std::isfinite(*value) && hud_listening) {
+          hud_level = (std::clamp)(*value, 0.0, 1.0);
+          if (hud_window) InvalidateRect(hud_window, nullptr, FALSE);
+        }
+      }
       result->Success();
     } else if (call.method_name() == "updateHud") {
       const auto* args = std::get_if<flutter::EncodableMap>(call.arguments());
@@ -416,6 +439,7 @@ bool FlutterWindow::OnCreate() {
         const int32_t* n = seconds == args->end() ? nullptr : std::get_if<int32_t>(&seconds->second);
         hud_preparing = s && *s == "preparing";
         hud_listening = s && *s == "listening";
+        if (!hud_listening) hud_level = 0;
         hud_success = s && *s == "success";
         hud_writing = s && *s == "writing";
         if (s && *s == "preparing") {

@@ -33,6 +33,8 @@ class DictationController extends VeloraController {
   String? _mode;
   Timer? _timer;
   Timer? _hudTimer;
+  Timer? _levelTimer;
+  bool _readingLevel = false;
 
   bool get playgroundActive =>
       settingsVisible.value && desktop.isAppForeground() && playgroundFocused;
@@ -119,6 +121,7 @@ class DictationController extends VeloraController {
     recording.value = false;
     _mode = null;
     _timer?.cancel();
+    _levelTimer?.cancel();
     try {
       await dictation.cancel();
     } catch (_) {
@@ -153,6 +156,24 @@ class DictationController extends VeloraController {
         await desktop.setRecording(true);
         hud.value = HudState.listening;
         await desktop.updateHud(hud.value.name, message.value, seconds.value);
+        _levelTimer = Timer.periodic(const Duration(milliseconds: 120), (
+          _,
+        ) async {
+          if (_readingLevel || !_listening) return;
+          _readingLevel = true;
+          try {
+            final amplitude = await dictation.audio.amplitude();
+            if (_listening) {
+              await desktop.updateHudLevel(
+                ((amplitude.current + 60) / 60).clamp(0.0, 1.0),
+              );
+            }
+          } catch (_) {
+            // Audio level is optional; recording must continue if unavailable.
+          } finally {
+            _readingLevel = false;
+          }
+        });
         _timer = Timer.periodic(const Duration(seconds: 1), (_) {
           seconds.value++;
           unawaited(
@@ -161,6 +182,7 @@ class DictationController extends VeloraController {
         });
       } else {
         _timer?.cancel();
+        _levelTimer?.cancel();
         _listening = false;
         recording.value = false;
         processing = true;
@@ -177,8 +199,10 @@ class DictationController extends VeloraController {
         await dictation.finish(
           onChunk: useStream
               ? (accumulated) {
-                  final text =
-                      accumulated.trim().replaceAll(RegExp(r'\s+'), ' ');
+                  final text = accumulated.trim().replaceAll(
+                    RegExp(r'\s+'),
+                    ' ',
+                  );
                   final display = text.length > 38
                       ? '…${text.substring(text.length - 35)}'
                       : text;
@@ -214,6 +238,7 @@ class DictationController extends VeloraController {
       _mode = null;
       recording.value = false;
       _timer?.cancel();
+      _levelTimer?.cancel();
       if (_listening) {
         _listening = false;
         try {
@@ -258,6 +283,7 @@ class DictationController extends VeloraController {
     _closing = true;
     await _operationDone?.future;
     _timer?.cancel();
+    _levelTimer?.cancel();
     _hudTimer?.cancel();
     await dictation.dispose();
     await settings.close();

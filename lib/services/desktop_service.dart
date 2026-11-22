@@ -229,6 +229,17 @@ final class _Input extends Struct {
   external _InputUnion data;
 }
 
+@visibleForTesting
+bool isUsableWindowBounds(WindowBounds bounds) =>
+    bounds.x.isFinite &&
+    bounds.y.isFinite &&
+    bounds.x > -32000 &&
+    bounds.y > -32000 &&
+    bounds.width.isFinite &&
+    bounds.height.isFinite &&
+    bounds.width >= 600 &&
+    bounds.height >= 400;
+
 class _WindowAdapter extends WindowManagerAdapter {
   bool Function()? _onCloseRequested;
   bool _attached = false;
@@ -244,6 +255,18 @@ class _WindowAdapter extends WindowManagerAdapter {
     if (!_attached && onCloseRequested != null) {
       await attach(onCloseRequested: onCloseRequested);
     }
+  }
+
+  @override
+  Future<WindowBounds?> getBounds() async {
+    if (await windowManager.isMinimized()) return null;
+    final bounds = await super.getBounds();
+    return bounds != null && isUsableWindowBounds(bounds) ? bounds : null;
+  }
+
+  @override
+  Future<void> setBounds(WindowBounds bounds) async {
+    if (isUsableWindowBounds(bounds)) await super.setBounds(bounds);
   }
 }
 
@@ -542,6 +565,9 @@ class DesktopService {
         'seconds': seconds,
       });
 
+  Future<void> updateHudLevel(double level) =>
+      _keyChannel.invokeMethod<void>('updateHudLevel', {'level': level});
+
   Future<void> showHud() => _keyChannel.invokeMethod<void>('showHud');
 
   Future<void> hideHud() => _keyChannel.invokeMethod<void>('hideHud');
@@ -556,6 +582,7 @@ class DesktopService {
     await windowManager.setBackgroundColor(Colors.white);
     await windowManager.setAlwaysOnTop(false);
     await windowManager.setSkipTaskbar(false);
+    if (await windowManager.isMinimized()) await windowManager.restore();
     await _keyChannel.invokeMethod<void>('ensureWindowVisible');
     await windowManager.show();
     await windowManager.focus();
