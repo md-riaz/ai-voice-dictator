@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cassert>
 #include <algorithm>
+#include <gdiplus.h>
 #include <flutter/method_channel.h>
 #include <flutter/standard_method_codec.h>
 
@@ -22,6 +23,7 @@ bool hud_preparing = false;
 bool hud_listening = false;
 double hud_level = 0;
 bool hud_timer_running = false;
+ULONG_PTR gdiplus_token = 0;
 constexpr unsigned kCtrl = 1, kWin = 2, kAlt = 4, kShift = 8, kSpace = 16;
 unsigned hold_chord = kCtrl | kWin;
 unsigned translation_chord = kCtrl | kWin | kAlt;
@@ -177,11 +179,21 @@ LRESULT CALLBACK HudProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) 
     oldPen = SelectObject(dc, iconPen);
     if (hud_preparing || hud_writing) {
       const double angle = (GetTickCount64() % 960) * 6.283185307179586 / 960;
-      Arc(dc, 20, cy - 10, 40, cy + 10,
-          30 + static_cast<int>(10 * std::cos(angle)),
-          cy + static_cast<int>(10 * std::sin(angle)),
-          30 + static_cast<int>(10 * std::cos(angle + 1.5)),
-          cy + static_cast<int>(10 * std::sin(angle + 1.5)));
+      if (gdiplus_token) {
+        Gdiplus::Graphics graphics(dc);
+        graphics.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+        Gdiplus::Pen pen(Gdiplus::Color(GetRValue(hud_color), GetGValue(hud_color), GetBValue(hud_color)), 3.0f);
+        pen.SetStartCap(Gdiplus::LineCapRound);
+        pen.SetEndCap(Gdiplus::LineCapRound);
+        graphics.DrawArc(&pen, 20.0f, static_cast<float>(cy - 10), 20.0f, 20.0f,
+                         static_cast<float>((GetTickCount64() % 960) * 360.0 / 960), 270.0f);
+      } else {
+        Arc(dc, 20, cy - 10, 40, cy + 10,
+            30 + static_cast<int>(10 * std::cos(angle)),
+            cy + static_cast<int>(10 * std::sin(angle)),
+            30 + static_cast<int>(10 * std::cos(angle + 1.5)),
+            cy + static_cast<int>(10 * std::sin(angle + 1.5)));
+      }
     } else if (hud_listening) {
       const int heights[] = {3, 6, 10, 6, 3};
       for (int i = 0; i < 5; ++i) {
@@ -217,6 +229,10 @@ LRESULT CALLBACK HudProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) 
 }
 
 bool CreateHud() {
+  if (!gdiplus_token) {
+    Gdiplus::GdiplusStartupInput input;
+    Gdiplus::GdiplusStartup(&gdiplus_token, &input, nullptr);
+  }
   WNDCLASSW wc = {}; wc.lpfnWndProc = HudProc;
   wc.hInstance = GetModuleHandle(nullptr); wc.lpszClassName = L"AiDictatorHud";
   if (!RegisterClassW(&wc) && GetLastError() != ERROR_CLASS_ALREADY_EXISTS) return false;
@@ -258,7 +274,7 @@ void UpdateHudAnimation() {
   if (!hud_window) return;
   const bool animate = (hud_writing || hud_preparing) && IsWindowVisible(hud_window);
   if (animate && !hud_timer_running) {
-    hud_timer_running = SetTimer(hud_window, kHudTimer, 60, nullptr) != 0;
+    hud_timer_running = SetTimer(hud_window, kHudTimer, 16, nullptr) != 0;
   } else if (!animate && hud_timer_running) {
     KillTimer(hud_window, kHudTimer);
     hud_timer_running = false;
@@ -472,6 +488,8 @@ void FlutterWindow::OnDestroy() {
   hook = nullptr;
   if (hud_window) { KillTimer(hud_window, kHudTimer); DestroyWindow(hud_window); }
   hud_window = nullptr;
+  if (gdiplus_token) Gdiplus::GdiplusShutdown(gdiplus_token);
+  gdiplus_token = 0;
   keys.reset();
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
