@@ -801,9 +801,10 @@ class _SettingsViewState extends State<SettingsView> {
                                     const SizedBox(height: 16),
                                     Text(
                                       'Recording limit: 12 MiB (about 6.5 minutes at 16 kHz mono). Longer recordings may be rejected; the limit depends on the audio format.',
-                                      style: theme.textTheme.bodySmall?.copyWith(
-                                        color: colors.onSurfaceVariant,
-                                      ),
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            color: colors.onSurfaceVariant,
+                                          ),
                                     ),
                                   ],
                                 ),
@@ -866,16 +867,18 @@ class _SettingsViewState extends State<SettingsView> {
                                     const SizedBox(height: 8),
                                     Text(
                                       'Recordings are limited to 12 MiB before encoding (about 6.5 minutes at 16 kHz mono). Gemini requests are limited to 20 MB including the prompt.',
-                                      style: theme.textTheme.bodySmall?.copyWith(
-                                        color: colors.onSurfaceVariant,
-                                      ),
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            color: colors.onSurfaceVariant,
+                                          ),
                                     ),
                                     const SizedBox(height: 8),
                                     Text(
                                       'Processing requests can wait 30–300 seconds depending on recording length; retries may take longer.',
-                                      style: theme.textTheme.bodySmall?.copyWith(
-                                        color: colors.onSurfaceVariant,
-                                      ),
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            color: colors.onSurfaceVariant,
+                                          ),
                                     ),
                                     const SizedBox(height: 20),
                                     Text(
@@ -1012,12 +1015,10 @@ class _SettingsViewState extends State<SettingsView> {
                                     SwitchListTile(
                                       contentPadding: EdgeInsets.zero,
                                       title: const Text(
-                                        'Live HUD streaming preview',
+                                        'Live dictation streaming',
                                       ),
-                                      subtitle: Text(
-                                        controller.streamPreview
-                                            ? 'Streaming preview active. Words appear in the floating HUD in real-time as Gemini generates them.'
-                                            : 'Stream words in real-time in the floating HUD as Gemini generates them before pasting.',
+                                      subtitle: const Text(
+                                        'For dictation, send audio chunks while speaking and type each completed chunk. Translation uses the complete recording. In other apps, use hands-free mode. Streaming uses more API requests and does not polish the complete paragraph.',
                                       ),
                                       value: controller.streamPreview,
                                       onChanged: controller.setStreamPreview,
@@ -1046,7 +1047,7 @@ class _SettingsViewState extends State<SettingsView> {
                                             context,
                                             Icons.history_rounded,
                                             'Recent dictations',
-                                            'Your latest transcripts are stored locally.',
+                                            'Your latest transcripts are stored locally. After stop includes preparation and waiting; Gemini request includes network and retries. Both exclude clipboard and paste.',
                                           ),
                                         ),
                                         if (controller.history.isNotEmpty)
@@ -1195,42 +1196,113 @@ class _SettingsViewState extends State<SettingsView> {
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                         subtitle: Text(
-                                          '${entry.createdAt.toLocal()} · Recording ${entry.duration.inSeconds}s · ${entry.wordCount} words\n${entry.capturedAudio == null || entry.submittedAudio == null ? 'Audio metrics unavailable' : 'Captured ${_formatAudioMetric(entry.capturedAudio!)} · Removed ${_formatAudioMetric(entry.capturedAudio! - entry.submittedAudio!)} · Submitted ${_formatAudioMetric(entry.submittedAudio!)}'}',
+                                          '${_formatHistoryDate(entry.createdAt)} · Recording ${entry.duration.inSeconds}s · ${entry.wordCount} words\n${entry.capturedAudio == null || entry.submittedAudio == null ? 'Audio metrics unavailable' : 'Captured ${_formatAudioMetric(entry.capturedAudio!)} · Removed ${_formatAudioMetric(entry.capturedAudio! - entry.submittedAudio!)} · Submitted ${_formatAudioMetric(entry.submittedAudio!)}'}\n${_formatHistoryTiming(entry)}',
                                         ),
-                                        trailing: IconButton(
-                                          tooltip: 'Copy',
-                                          icon: const Icon(Icons.copy),
-                                          onPressed: () async {
-                                            try {
-                                              await Clipboard.setData(
-                                                ClipboardData(
-                                                  text:
-                                                      normalizeWindowsLineEndings(
-                                                        entry.text,
+                                        trailing: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            IconButton(
+                                              tooltip: 'Processing details',
+                                              icon: const Icon(
+                                                Icons.info_outline,
+                                              ),
+                                              onPressed: () => showDialog<void>(
+                                                context: context,
+                                                builder: (context) => AlertDialog(
+                                                  title: const Text(
+                                                    'Processing details',
+                                                  ),
+                                                  content: SizedBox(
+                                                    width: 520,
+                                                    child: SingleChildScrollView(
+                                                      child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          const Text(
+                                                            'Times are measured from the start of each chunk, request, or stop phase. Network and server time are included.',
+                                                          ),
+                                                          const SizedBox(
+                                                            height: 12,
+                                                          ),
+                                                          if (entry
+                                                              .technicalDetails
+                                                              .isEmpty)
+                                                            const Text(
+                                                              'Detailed timing is unavailable for this entry.',
+                                                            )
+                                                          else
+                                                            for (final event
+                                                                in entry
+                                                                    .technicalDetails)
+                                                              Padding(
+                                                                padding:
+                                                                    const EdgeInsets.only(
+                                                                      bottom: 6,
+                                                                    ),
+                                                                child:
+                                                                    SelectableText(
+                                                                      event,
+                                                                    ),
+                                                              ),
+                                                        ],
                                                       ),
+                                                    ),
+                                                  ),
+                                                  actions: [
+                                                    TextButton(
+                                                      onPressed: () =>
+                                                          Navigator.pop(
+                                                            context,
+                                                          ),
+                                                      child: const Text(
+                                                        'Close',
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ),
-                                              );
-                                              if (!context.mounted) return;
-                                              ScaffoldMessenger.of(context)
-                                                  .showSnackBar(
+                                              ),
+                                            ),
+                                            IconButton(
+                                              tooltip: 'Copy',
+                                              icon: const Icon(Icons.copy),
+                                              onPressed: () async {
+                                                try {
+                                                  await Clipboard.setData(
+                                                    ClipboardData(
+                                                      text:
+                                                          normalizeWindowsLineEndings(
+                                                            entry.text,
+                                                          ),
+                                                    ),
+                                                  );
+                                                  if (!context.mounted) return;
+                                                  ScaffoldMessenger.of(
+                                                    context,
+                                                  ).showSnackBar(
                                                     const SnackBar(
                                                       content: Text(
                                                         'Copied to clipboard.',
                                                       ),
                                                     ),
                                                   );
-                                            } catch (_) {
-                                              if (!context.mounted) return;
-                                              ScaffoldMessenger.of(context)
-                                                  .showSnackBar(
-                                                    const SnackBar(
-                                                      content: Text(
-                                                        'Could not copy to clipboard.',
-                                                      ),
-                                                    ),
-                                                  );
-                                            }
-                                          },
+                                                } catch (_) {
+                                                  if (!context.mounted) return;
+                                                  ScaffoldMessenger.of(context)
+                                                      .showSnackBar(
+                                                        const SnackBar(
+                                                          content: Text(
+                                                            'Could not copy to clipboard.',
+                                                          ),
+                                                        ),
+                                                      );
+                                                }
+                                              },
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     if (controller.historyHasMore)
@@ -1472,8 +1544,7 @@ class _SettingsViewState extends State<SettingsView> {
                     colors,
                     icon: Icons.info_outline_rounded,
                     title: 'Time saved calculation',
-                    detail:
-                        'Speaking pace uses the recording time, including pauses. Time saved is an estimate compared with typing at 40 WPM. Both exclude transcription and paste time.',
+                    detail: 'Speaking pace uses the recording time, including pauses. Time saved is an estimate compared with typing at 40 WPM. Both exclude transcription and paste time.',
                   ),
                 ],
               ),
@@ -1666,6 +1737,26 @@ class _SettingsViewState extends State<SettingsView> {
     final mins = d.inMinutes;
     final secs = d.inSeconds % 60;
     return '${mins}m ${secs}s';
+  }
+
+  String _formatHistoryDate(DateTime value) {
+    final date = value.toLocal();
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
+    final minute = date.minute.toString().padLeft(2, '0');
+    final period = date.hour < 12 ? 'AM' : 'PM';
+    return '$day/$month/${date.year} $hour:$minute $period';
+  }
+
+  String _formatHistoryTiming(HistoryEntry entry) {
+    if (entry.afterStop == null) return 'Processing timing unavailable';
+    final afterStop = _formatAudioMetric(entry.afterStop!);
+    if (entry.geminiRequest == null) {
+      return 'After stop: $afterStop · Gemini: live chunks';
+    }
+    final beforeRequest = entry.afterStop! - entry.geminiRequest!;
+    return 'After stop: $afterStop · Before request: ${_formatAudioMetric(beforeRequest)} · Gemini request: ${_formatAudioMetric(entry.geminiRequest!)} (network and retries included)';
   }
 
   String _formatAudioMetric(Duration d) =>

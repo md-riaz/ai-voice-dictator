@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path/path.dart' as p;
@@ -14,6 +15,9 @@ class HistoryEntry {
     required this.duration,
     this.capturedAudio,
     this.submittedAudio,
+    this.afterStop,
+    this.geminiRequest,
+    this.technicalDetails = const [],
   });
   final int? id;
   final String text;
@@ -21,6 +25,9 @@ class HistoryEntry {
   final Duration duration;
   final Duration? capturedAudio;
   final Duration? submittedAudio;
+  final Duration? afterStop;
+  final Duration? geminiRequest;
+  final List<String> technicalDetails;
   int get wordCount =>
       text.trim().isEmpty ? 0 : text.trim().split(RegExp(r'\s+')).length;
 }
@@ -122,10 +129,10 @@ class SettingsStore {
       _database = await databaseFactoryFfi.openDatabase(
         path,
         options: OpenDatabaseOptions(
-          version: 2,
+          version: 4,
           onCreate: (db, version) async {
             await db.execute(
-              'CREATE TABLE history (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT NOT NULL, created_at INTEGER NOT NULL, duration_ms INTEGER NOT NULL, captured_us INTEGER, submitted_us INTEGER)',
+              'CREATE TABLE history (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT NOT NULL, created_at INTEGER NOT NULL, duration_ms INTEGER NOT NULL, captured_us INTEGER, submitted_us INTEGER, after_stop_ms INTEGER, gemini_request_ms INTEGER, technical_details TEXT)',
             );
           },
           onUpgrade: (db, oldVersion, newVersion) async {
@@ -135,6 +142,19 @@ class SettingsStore {
               );
               await db.execute(
                 'ALTER TABLE history ADD COLUMN submitted_us INTEGER',
+              );
+            }
+            if (oldVersion < 3) {
+              await db.execute(
+                'ALTER TABLE history ADD COLUMN after_stop_ms INTEGER',
+              );
+              await db.execute(
+                'ALTER TABLE history ADD COLUMN gemini_request_ms INTEGER',
+              );
+            }
+            if (oldVersion < 4) {
+              await db.execute(
+                'ALTER TABLE history ADD COLUMN technical_details TEXT',
               );
             }
           },
@@ -273,20 +293,28 @@ class SettingsStore {
     await _prefs.setString('shortcut_config', '$hold|$translation|$key');
   }
 
-  Future<void> addHistory(
+  Future<int> addHistory(
     String text,
     Duration duration, {
     Duration? capturedAudio,
     Duration? submittedAudio,
+    Duration? afterStop,
+    Duration? geminiRequest,
+    List<String> technicalDetails = const [],
   }) async {
     final now = DateTime.now();
-    await _historyDatabase.transaction((txn) async {
-      await txn.insert('history', {
+    return _historyDatabase.transaction((txn) async {
+      final id = await txn.insert('history', {
         'text': text,
         'created_at': now.millisecondsSinceEpoch,
         'duration_ms': duration.inMilliseconds,
         'captured_us': capturedAudio?.inMicroseconds,
         'submitted_us': submittedAudio?.inMicroseconds,
+        'after_stop_ms': afterStop?.inMilliseconds,
+        'gemini_request_ms': geminiRequest?.inMilliseconds,
+        'technical_details': technicalDetails.isEmpty
+            ? null
+            : jsonEncode(technicalDetails),
       });
       final days = historyRetention();
       if (days > 0) {
@@ -298,7 +326,17 @@ class SettingsStore {
           ],
         );
       }
+      return id;
     });
+  }
+
+  Future<void> updateTechnicalDetails(int id, List<String> details) async {
+    await _historyDatabase.update(
+      'history',
+      {'technical_details': jsonEncode(details)},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
   Future<void> clearHistory() async => _historyDatabase.delete('history');
@@ -406,6 +444,13 @@ class SettingsStore {
             submittedAudio: row['submitted_us'] == null
                 ? null
                 : Duration(microseconds: row['submitted_us'] as int),
+            afterStop: row['after_stop_ms'] == null
+                ? null
+                : Duration(milliseconds: row['after_stop_ms'] as int),
+            technicalDetails: _decodeTechnicalDetails(row['technical_details']),
+            geminiRequest: row['gemini_request_ms'] == null
+                ? null
+                : Duration(milliseconds: row['gemini_request_ms'] as int),
           ),
         )
         .toList();
@@ -413,5 +458,14 @@ class SettingsStore {
 
   Future<void> close() async {
     await _database?.close();
+  }
+}
+
+List<String> _decodeTechnicalDetails(Object? value) {
+  if (value is! String) return const [];
+  try {
+    return (jsonDecode(value) as List).whereType<String>().toList();
+  } catch (_) {
+    return const [];
   }
 }

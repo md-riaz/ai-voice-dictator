@@ -96,6 +96,23 @@ void main() {
     await dir.delete(recursive: true);
   });
 
+  test('records request time and total time after recording stops', () async {
+    final service = DictationService(
+      settings,
+      FlowAudio(file),
+      FlowDesktop(),
+      transcribe: (_, _, _, _, _, _) async {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        return 'Hello';
+      },
+    );
+    await service.start();
+    await service.finish();
+    final entry = (await settings.history()).single;
+    expect(entry.geminiRequest!.inMilliseconds, greaterThanOrEqualTo(40));
+    expect(entry.afterStop!, greaterThanOrEqualTo(entry.geminiRequest!));
+  });
+
   Future<void> runFlow(
     FlowDesktop desktop, {
     int status = 200,

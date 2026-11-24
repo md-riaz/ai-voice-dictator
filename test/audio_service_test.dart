@@ -33,6 +33,20 @@ Uint8List wav({bool silent = false}) {
 
 void main() {
   test(
+    'debug copy retains original audio after source is changed or deleted',
+    () async {
+      final dir = await Directory.systemTemp.createTemp('debug_audio_test_');
+      addTearDown(() => dir.delete(recursive: true));
+      final source = File('${dir.path}/recording.wav');
+      final original = wav();
+      await source.writeAsBytes(original);
+      final copy = await preserveDebugRecording(source, dir);
+      await source.delete();
+      expect(await copy.readAsBytes(), original);
+      expect(copy.parent.path, endsWith('ai_voice_dictator_debug_audio'));
+    },
+  );
+  test(
     'measures captured and submitted PCM durations from sample counts',
     () async {
       final dir = await Directory.systemTemp.createTemp('audio_duration_');

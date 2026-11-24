@@ -21,7 +21,11 @@ class FloatingHudOverlay extends StatelessWidget {
         Icons.mic_none,
         'Please wait before speaking…',
       ),
-      HudState.listening => (const Color(0xFF4F46E5), Icons.mic, 'Speak now'),
+      HudState.listening => (
+        const Color(0xFF4F46E5),
+        Icons.mic,
+        message.isEmpty ? 'Speak now' : message,
+      ),
       HudState.writing => (
         const Color(0xFF4F46E5),
         Icons.hourglass_top_rounded,

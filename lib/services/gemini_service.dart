@@ -108,12 +108,28 @@ class GeminiDictationService {
     this.apiKey, {
     this.model = SettingsStore.defaultModel,
     this.systemPrompt,
+    this.onAudit,
     this._client,
   });
   final String apiKey;
   final String model;
   final String? systemPrompt;
+  final void Function(String)? onAudit;
   final http.Client? _client;
+  http.Client? _activeClient;
+  bool _cancelled = false;
+
+  void cancel() {
+    _cancelled = true;
+    _activeClient?.close();
+  }
+
+  void _checkCancelled() {
+    if (_cancelled) {
+      throw const DictationException('cancelled', 'Dictation cancelled.');
+    }
+  }
+
   static const maxAudioBytes = 12 * 1024 * 1024;
   static const models = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'];
 
@@ -123,8 +139,22 @@ class GeminiDictationService {
     DictationLanguageMode mode = DictationLanguageMode.auto,
     String targetLanguage = 'English',
     void Function(String)? onChunk,
+    String? previousText,
+    bool live = false,
   }) async {
-    final requestTimeout = geminiRequestTimeout(durationSec);
+    final auditClock = Stopwatch()..start();
+    final auditId = Zone.current['auditChunkId'];
+    void audit(String stage) {
+      final message =
+          'Gemini ${auditId == null ? "full" : "chunk #$auditId"}: $stage ${auditClock.elapsedMilliseconds}ms';
+      onAudit?.call(message);
+      if (kDebugMode) debugPrint(message);
+    }
+
+    audit('begin');
+    final requestTimeout = live
+        ? const Duration(seconds: 15)
+        : geminiRequestTimeout(durationSec);
     if (apiKey.trim().isEmpty) {
       throw const DictationException(
         'key_missing',
@@ -145,6 +175,7 @@ class GeminiDictationService {
       );
     }
     final length = await audioFile.length();
+    audit('audio metadata');
     if (length > maxAudioBytes) {
       throw const DictationException(
         'audio_too_large',
@@ -154,8 +185,11 @@ class GeminiDictationService {
     final client =
         _client ??
         IOClient(HttpClient()..connectionTimeout = const Duration(seconds: 25));
+    _checkCancelled();
+    _activeClient = client;
     try {
       final bytes = await audioFile.readAsBytes();
+      audit('audio read');
       if (bytes.length > maxAudioBytes) {
         throw const DictationException(
           'audio_too_large',
@@ -169,11 +203,13 @@ class GeminiDictationService {
         'system_instruction': {
           'parts': [
             {
-              'text': LanguagePromptBuilder.buildSystemPrompt(
-                mode: mode,
-                targetLanguage: targetLanguage,
-                systemPrompt: systemPrompt,
-              ),
+              'text': live && mode != DictationLanguageMode.translate
+                  ? 'Transcribe exactly what is spoken, using each language’s usual script. Preserve spoken numbers and their order. Do not translate or answer. Return only the transcription, without timestamps.'
+                  : LanguagePromptBuilder.buildSystemPrompt(
+                      mode: mode,
+                      targetLanguage: targetLanguage,
+                      systemPrompt: systemPrompt,
+                    ),
             },
           ],
         },
@@ -183,14 +219,20 @@ class GeminiDictationService {
             'parts': [
               audioPart,
               {
-                'text': 'Transcribe accurately according to the system instructions.',
+                'text': live && mode != DictationLanguageMode.translate
+                    ? 'Transcribe the audio.'
+                    : previousText == null || previousText.isEmpty
+                    ? 'Transcribe accurately according to the system instructions.'
+                    : 'Transcribe only the new audio. The preceding transcript is context only; do not repeat it: ${previousText.length > 200 ? previousText.substring(previousText.length - 200) : previousText}',
               },
             ],
           },
         ],
       };
+      audit('audio encoded');
       String? failure;
       for (final model in this.model == models.first ? models : [this.model]) {
+        _checkCancelled();
         final body = jsonEncode({
           ...payload,
           'generationConfig': {
@@ -206,6 +248,7 @@ class GeminiDictationService {
             'Audio and prompt exceed Gemini’s 20 MB inline request limit.',
           );
         }
+        audit('request prepared');
         if (onChunk != null) {
           try {
             final request = http.Request(
@@ -219,14 +262,30 @@ class GeminiDictationService {
             request.headers['Content-Type'] = 'application/json';
             request.headers['x-goog-api-key'] = apiKey;
             request.body = body;
+            audit('stream send');
             final streamedResponse = await client
                 .send(request)
                 .timeout(requestTimeout);
+            _checkCancelled();
+            audit('stream headers HTTP ${streamedResponse.statusCode}');
             if (streamedResponse.statusCode == 200) {
+              var receivedBytes = false;
+              var receivedText = false;
               final accumulated = StringBuffer();
               await for (final line
                   in streamedResponse.stream
-                      .timeout(const Duration(seconds: 20))
+                      .timeout(
+                        live
+                            ? const Duration(seconds: 15)
+                            : const Duration(seconds: 20),
+                      )
+                      .map((bytes) {
+                        if (!receivedBytes) {
+                          receivedBytes = true;
+                          audit('stream first bytes');
+                        }
+                        return bytes;
+                      })
                       .transform(utf8.decoder)
                       .transform(const LineSplitter())) {
                 if (line.startsWith('data: ')) {
@@ -245,6 +304,10 @@ class GeminiDictationService {
                               .join() ??
                           '';
                       if (chunkText.isNotEmpty) {
+                        if (!receivedText) {
+                          receivedText = true;
+                          audit('stream first text');
+                        }
                         accumulated.write(chunkText);
                         onChunk(accumulated.toString());
                       }
@@ -252,6 +315,8 @@ class GeminiDictationService {
                   }
                 }
               }
+              _checkCancelled();
+              audit('stream complete');
               final fullText = accumulated.toString();
               if (fullText.isNotEmpty) {
                 return DictationGuardrails.sanitizeResponse(
@@ -260,13 +325,26 @@ class GeminiDictationService {
                 );
               }
             }
+            if (live) {
+              throw const DictationException(
+                'live_unavailable',
+                'Live transcription is unavailable.',
+              );
+            }
           } catch (e) {
-            debugPrint('Gemini streaming fallback to unary: $e');
+            _checkCancelled();
+            if (live) {
+              audit('stream failed ${e.runtimeType}');
+              rethrow;
+            }
+            audit('stream failed ${e.runtimeType}; fallback to unary');
           }
         }
         for (var attempt = 0; attempt < 2; attempt++) {
+          _checkCancelled();
           http.Response response;
           try {
+            audit('unary attempt ${attempt + 1} send');
             response = await client
                 .post(
                   Uri.https(
@@ -281,17 +359,20 @@ class GeminiDictationService {
                 )
                 .timeout(requestTimeout);
           } on TimeoutException {
+            _checkCancelled();
             debugPrint('Gemini request timed out for $model');
             failure ??=
                 'Gemini timed out. Check your internet connection and retry.';
             break;
           } on http.ClientException {
+            _checkCancelled();
             debugPrint('Gemini network connection failed for $model');
             failure ??=
                 'Could not reach Gemini. Check your internet connection.';
             break;
           }
-          debugPrint('Gemini $model HTTP ${response.statusCode}');
+          _checkCancelled();
+          audit('unary HTTP ${response.statusCode}');
           if (response.statusCode == 200) {
             try {
               final json = jsonDecode(response.body) as Map<String, dynamic>;
@@ -351,6 +432,7 @@ class GeminiDictationService {
         failure ?? 'Gemini is unavailable. Try again later.',
       );
     } finally {
+      _activeClient = null;
       if (_client == null) client.close();
     }
   }

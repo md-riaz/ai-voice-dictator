@@ -8,6 +8,8 @@ import 'package:ai_voice_dictator/settings/settings_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class TestSettings extends SettingsStore {
+  @override
+  bool streamPreview() => false;
   final keyResult = Completer<String>();
   bool closed = false;
   @override
@@ -54,7 +56,43 @@ class TestDesktop extends DesktopService {
   Future<void> dispose() async {}
 }
 
+class ProcessingDictation extends DictationService {
+  ProcessingDictation(super.settings, super.audio, super.desktop);
+  final started = Completer<void>();
+  final done = Completer<void>();
+  bool cancelled = false;
+  @override
+  Future<void> start({bool translate = false}) async {}
+  @override
+  Future<void> finish({void Function(String)? onChunk}) {
+    started.complete();
+    return done.future;
+  }
+
+  @override
+  void cancelProcessing() {
+    cancelled = true;
+    if (!done.isCompleted) done.complete();
+  }
+}
+
 void main() {
+  test('escape cancels processing and leaves controller ready', () async {
+    final settings = TestSettings();
+    final audio = TestAudio();
+    final desktop = TestDesktop();
+    final service = ProcessingDictation(settings, audio, desktop);
+    final controller = DictationController(service, settings, desktop);
+    await controller.toggle();
+    final finishing = controller.toggle();
+    await service.started.future;
+    await controller.handleShortcut('cancel');
+    await finishing;
+    expect(service.cancelled, isTrue);
+    expect(controller.processing, isFalse);
+    expect(controller.recording.value, isFalse);
+  });
+
   test(
     'exit waits for an active operation before disposing services',
     () async {

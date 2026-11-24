@@ -1,12 +1,28 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart'
+    show debugPrint, kDebugMode, visibleForTesting;
 
 import '../guardrails.dart';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
+
+@visibleForTesting
+Future<File> preserveDebugRecording(
+  File file,
+  Directory temporaryDirectory,
+) async {
+  final directory = Directory(
+    p.join(temporaryDirectory.path, 'ai_voice_dictator_debug_audio'),
+  );
+  await directory.create(recursive: true);
+  return file.copy(p.join(directory.path, p.basename(file.path)));
+}
 
 Future<Duration> normalizedWavDuration(File file) async {
   final bytes = await file.readAsBytes();
@@ -206,11 +222,24 @@ class AudioService {
   final AudioRecorder _recorder = AudioRecorder();
   final Stopwatch _clock = Stopwatch();
   String? _path;
+  IOSink? _pcmSink;
+  Completer<void>? _streamDone;
+  Object? _streamError;
 
   Future<List<InputDevice>> listDevices() => _recorder.listInputDevices();
   Future<Amplitude> amplitude() => _recorder.getAmplitude();
 
-  Future<void> start({String? deviceId}) async {
+  Future<void> start({String? deviceId}) => _start(deviceId: deviceId);
+
+  Future<void> startLive(
+    void Function(Uint8List) onAudio, {
+    String? deviceId,
+  }) => _start(deviceId: deviceId, onAudio: onAudio);
+
+  Future<void> _start({
+    String? deviceId,
+    void Function(Uint8List)? onAudio,
+  }) async {
     if (_path != null) throw StateError('A recording is already active.');
     if (!await _recorder.hasPermission()) {
       throw Exception('Microphone permission denied.');
@@ -232,19 +261,49 @@ class AudioService {
     );
     _path = file.path;
     try {
-      await _recorder.start(
-        RecordConfig(
-          encoder: AudioEncoder.wav,
-          sampleRate: 16000,
-          numChannels: 1,
-          device: device,
-        ),
-        path: file.path,
-      );
+      if (onAudio == null) {
+        await _recorder.start(
+          RecordConfig(
+            encoder: AudioEncoder.wav,
+            sampleRate: 16000,
+            numChannels: 1,
+            device: device,
+          ),
+          path: file.path,
+        );
+      } else {
+        _pcmSink = file.openWrite();
+        final streamDone = Completer<void>();
+        _streamDone = streamDone;
+        _streamError = null;
+        final stream = await _recorder.startStream(
+          RecordConfig(
+            encoder: AudioEncoder.pcm16bits,
+            sampleRate: 16000,
+            numChannels: 1,
+            device: device,
+          ),
+        );
+        stream.listen(
+          (bytes) {
+            _pcmSink?.add(bytes);
+            onAudio(bytes);
+          },
+          onError: (Object error) {
+            _streamError = error;
+          },
+          onDone: () {
+            if (!streamDone.isCompleted) streamDone.complete();
+          },
+        );
+      }
       _clock
         ..reset()
         ..start();
     } catch (_) {
+      await _pcmSink?.close();
+      _pcmSink = null;
+      _streamDone = null;
       _path = null;
       if (await file.exists()) await file.delete();
       rethrow;
@@ -257,13 +316,41 @@ class AudioService {
     _clock.stop();
     final duration = _clock.elapsedMilliseconds;
     try {
-      final path = await _recorder.stop();
+      final recordedPath = await _recorder.stop();
+      var path = recordedPath;
+      if (_streamDone != null) {
+        await _streamDone!.future;
+        await _pcmSink?.close();
+        _pcmSink = null;
+        if (_streamError != null) throw StateError('Microphone stream failed.');
+        final file = File(originalPath);
+        if (await file.length() + 44 > 12 * 1024 * 1024) {
+          throw const DictationException(
+            'audio_too_large',
+            'Recording exceeds the 12 MiB inline audio limit.',
+          );
+        }
+        final pcm = await file.readAsBytes();
+        await file.writeAsBytes(pcmToWav(pcm), flush: true);
+        path = originalPath;
+      }
       if (path == null) {
         final file = File(originalPath);
         if (await file.exists()) await file.delete();
         return null;
       }
       final file = File(path);
+      if (kDebugMode) {
+        try {
+          final copy = await preserveDebugRecording(
+            file,
+            await getTemporaryDirectory(),
+          );
+          debugPrint('Debug audio saved: ${copy.path}');
+        } catch (error) {
+          debugPrint('Could not save debug audio: ${error.runtimeType}');
+        }
+      }
       DictationGuardrails.validateAudio(file, duration);
       final metrics = await normalizeRecordedWav(file);
       return RecordedAudioResult(
@@ -273,11 +360,15 @@ class AudioService {
         submittedAudio: metrics.submitted,
       );
     } catch (_) {
+      await _pcmSink?.close();
+      _pcmSink = null;
       final file = File(originalPath);
       if (await file.exists()) await file.delete();
       rethrow;
     } finally {
       _path = null;
+      _streamDone = null;
+      _pcmSink = null;
     }
   }
 
@@ -285,6 +376,7 @@ class AudioService {
     final path = _path;
     try {
       await _recorder.dispose();
+      await _pcmSink?.close();
     } finally {
       _path = null;
       if (path != null) {
@@ -293,4 +385,24 @@ class AudioService {
       }
     }
   }
+}
+
+Uint8List pcmToWav(Uint8List pcm) {
+  final wav = Uint8List(44 + pcm.length);
+  final header = ByteData.sublistView(wav);
+  wav.setRange(0, 4, 'RIFF'.codeUnits);
+  header.setUint32(4, 36 + pcm.length, Endian.little);
+  wav.setRange(8, 12, 'WAVE'.codeUnits);
+  wav.setRange(12, 16, 'fmt '.codeUnits);
+  header.setUint32(16, 16, Endian.little);
+  header.setUint16(20, 1, Endian.little);
+  header.setUint16(22, 1, Endian.little);
+  header.setUint32(24, 16000, Endian.little);
+  header.setUint32(28, 32000, Endian.little);
+  header.setUint16(32, 2, Endian.little);
+  header.setUint16(34, 16, Endian.little);
+  wav.setRange(36, 40, 'data'.codeUnits);
+  header.setUint32(40, pcm.length, Endian.little);
+  wav.setRange(44, wav.length, pcm);
+  return wav;
 }

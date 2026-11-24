@@ -26,6 +26,65 @@ void main() {
   });
   tearDown(() => dir.delete(recursive: true));
 
+  test('live dictation uses a short prompt while translation keeps its full instruction', () async {
+    final prompts = <String>[];
+    final userTexts = <String>[];
+    final client = MockClient((request) async {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      prompts.add(body['system_instruction']['parts'][0]['text'] as String);
+      userTexts.add(body['contents'][0]['parts'][1]['text'] as String);
+      return http.Response(
+        jsonEncode({
+          'candidates': [
+            {
+              'content': {
+                'parts': [
+                  {'text': 'Hello'},
+                ],
+              },
+            },
+          ],
+        }),
+        200,
+      );
+    });
+    final service = GeminiDictationService('secret', client: client);
+    await service.transcribe(
+      audio,
+      3,
+      live: true,
+      previousText: 'earlier words',
+    );
+    await service.transcribe(
+      audio,
+      3,
+      live: true,
+      mode: DictationLanguageMode.translate,
+    );
+    expect(prompts.first.length, lessThan(200));
+    expect(prompts.first, contains('each language’s usual script'));
+    expect(prompts.first, contains('without timestamps'));
+    expect(userTexts.first, 'Transcribe the audio.');
+    expect(prompts.last, contains('Translate the spoken audio'));
+    expect(prompts.last, contains('Formatting examples'));
+  });
+
+  test('live stream failure does not start a second request', () async {
+    var requests = 0;
+    final client = MockClient((_) async {
+      requests++;
+      return http.Response('', 503);
+    });
+    await expectLater(
+      GeminiDictationService(
+        'secret',
+        client: client,
+      ).transcribe(audio, 3, live: true, onChunk: (_) {}),
+      throwsA(isA<DictationException>()),
+    );
+    expect(requests, 1);
+  });
+
   test('rejects oversized audio before any network request', () async {
     final client = MockClient((_) async => fail('must not call network'));
     final handle = await audio.open(mode: FileMode.write);

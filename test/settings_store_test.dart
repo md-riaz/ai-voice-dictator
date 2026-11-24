@@ -31,15 +31,25 @@ void main() {
       await db.close();
       final store = SettingsStore();
       await store.initialize(databasePath: path);
-      await store.addHistory(
+      final id = await store.addHistory(
         'new',
         const Duration(seconds: 5),
         capturedAudio: const Duration(microseconds: 4123456),
         submittedAudio: const Duration(microseconds: 2345678),
+        afterStop: const Duration(milliseconds: 4500),
+        geminiRequest: const Duration(milliseconds: 3200),
+        technicalDetails: ['Request started 0ms'],
       );
+      await store.updateTechnicalDetails(id, ['Request complete 3200ms']);
       final entries = await store.history();
+      expect(entries.first.technicalDetails, ['Request complete 3200ms']);
+      expect(entries.last.technicalDetails, isEmpty);
       expect(entries.first.capturedAudio!.inMicroseconds, 4123456);
       expect(entries.last.capturedAudio, isNull);
+      expect(entries.first.afterStop, const Duration(milliseconds: 4500));
+      expect(entries.first.geminiRequest, const Duration(milliseconds: 3200));
+      expect(entries.last.afterStop, isNull);
+      expect(entries.last.geminiRequest, isNull);
       final stats = await store.stats();
       expect(stats.measuredSessions, 1);
       expect(stats.totalSessions, 2);
@@ -48,6 +58,35 @@ void main() {
       await store.close();
     },
   );
+  test('upgrades version 2 history without losing entries', () async {
+    SharedPreferences.setMockInitialValues({});
+    sqfliteFfiInit();
+    final dir = await Directory.systemTemp.createTemp('history_v2_');
+    addTearDown(() => dir.delete(recursive: true));
+    final path = '${dir.path}/history.sqlite';
+    final db = await databaseFactoryFfi.openDatabase(
+      path,
+      options: OpenDatabaseOptions(
+        version: 2,
+        onCreate: (db, _) => db.execute(
+          'CREATE TABLE history (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT NOT NULL, created_at INTEGER NOT NULL, duration_ms INTEGER NOT NULL, captured_us INTEGER, submitted_us INTEGER)',
+        ),
+      ),
+    );
+    await db.insert('history', {
+      'text': 'old',
+      'created_at': DateTime.now().millisecondsSinceEpoch,
+      'duration_ms': 1000,
+    });
+    await db.close();
+    final store = SettingsStore();
+    await store.initialize(databasePath: path);
+    final old = (await store.history()).single;
+    expect(old.text, 'old');
+    expect(old.afterStop, isNull);
+    expect(old.geminiRequest, isNull);
+    await store.close();
+  });
   TestWidgetsFlutterBinding.ensureInitialized();
   test(
     'auto-start default is applied once and retried after failure',

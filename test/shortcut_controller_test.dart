@@ -14,6 +14,8 @@ class SlowDictation extends FakeDictation {
 }
 
 class FakeDictation implements DictationService {
+  @override
+  void Function(String)? onLivePreview;
   final events = <String>[];
   @override
   bool get historySaveFailed => false;
@@ -56,7 +58,30 @@ class FakeSettings implements SettingsStore {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+class LiveSettings extends FakeSettings {
+  @override
+  bool streamPreview() => true;
+}
+
 void main() {
+  test(
+    'translation uses full recording even when live dictation is enabled',
+    () async {
+      final service = FakeDictation();
+      final controller = DictationController(
+        service,
+        LiveSettings(),
+        FakeDesktop(),
+      );
+      await controller.handleShortcut('translationStart');
+      expect(service.onLivePreview, isNull);
+      expect(controller.message.value, isEmpty);
+      await controller.cancel();
+      await controller.handleShortcut('holdStart');
+      expect(service.onLivePreview, isNotNull);
+      await controller.cancel();
+    },
+  );
   testWidgets('a new recording can start while the success overlay is shown', (
     tester,
   ) async {

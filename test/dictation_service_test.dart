@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:ai_voice_dictator/services/audio_service.dart';
@@ -26,14 +27,21 @@ class FakeSettings implements SettingsStore {
   @override
   bool streamPreview() => false;
   @override
-  Future<void> addHistory(
+  Future<int> addHistory(
     String text,
     Duration duration, {
     Duration? capturedAudio,
     Duration? submittedAudio,
+    Duration? afterStop,
+    Duration? geminiRequest,
+    List<String> technicalDetails = const [],
   }) async {
     events.add('history:$text');
+    return 1;
   }
+
+  @override
+  Future<void> updateTechnicalDetails(int id, List<String> details) async {}
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -59,11 +67,14 @@ class EmptyAudio extends FakeAudio {
 
 class FailingHistorySettings extends FakeSettings {
   @override
-  Future<void> addHistory(
+  Future<int> addHistory(
     String text,
     Duration duration, {
     Duration? capturedAudio,
     Duration? submittedAudio,
+    Duration? afterStop,
+    Duration? geminiRequest,
+    List<String> technicalDetails = const [],
   }) async => throw StateError('disk full');
 }
 
@@ -84,6 +95,33 @@ class FakeDesktop implements DesktopService {
 }
 
 void main() {
+  test('cancelling a pending transcription prevents late delivery', () async {
+    final dir = await Directory.systemTemp.createTemp('cancel_test');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = File('${dir.path}/audio.wav');
+    await file.writeAsBytes(List.filled(9000, 1));
+    final settings = FakeSettings();
+    final started = Completer<void>();
+    final response = Completer<String>();
+    final service = DictationService(
+      settings,
+      FakeAudio(file),
+      FakeDesktop(settings.events),
+      transcribe: (_, _, _, _, _, _) {
+        started.complete();
+        return response.future;
+      },
+    );
+    await service.start();
+    final operation = service.finish();
+    await started.future;
+    service.cancelProcessing();
+    response.complete('late response');
+    await expectLater(operation, throwsA(isA<DictationException>()));
+    expect(settings.events, isEmpty);
+    expect(await file.exists(), isFalse);
+  });
+
   test('password or unknown field blocks recording', () async {
     final settings = FakeSettings();
     for (final status in [
@@ -218,6 +256,7 @@ void main() {
         return 'Hello';
       },
     );
+    service.onLivePreview = (_) => fail('translation must not stream');
     await service.start(translate: true);
     await service.finish();
     expect(settings.events, ['copy:Hello', 'history:Hello', 'paste:Hello:42']);

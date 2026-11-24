@@ -293,7 +293,7 @@ LRESULT CALLBACK KeyboardHook(int code, WPARAM message, LPARAM data) {
   const bool up = message == WM_KEYUP || message == WM_SYSKEYUP;
   if (!down && !up) return CallNextHookEx(hook, code, message, data);
   const auto key = event->vkCode;
-  if (key == VK_ESCAPE && down && recording) {
+  if (key == VK_ESCAPE && down && (recording || (hud_window && IsWindowVisible(hud_window)))) {
     KillTimer(key_window, kHoldTimer);
     hold_started = false;
     chord_used = true;
@@ -461,7 +461,7 @@ bool FlutterWindow::OnCreate() {
         if (s && *s == "preparing") {
           hud_text = L"Preparing..."; hud_color = RGB(79, 70, 229);
         } else if (s && *s == "listening") {
-          hud_text = L"Listening...  " + std::to_wstring(n ? *n / 60 : 0) + L":" + ((n && *n % 60 >= 10) ? L"" : L"0") + std::to_wstring(n ? *n % 60 : 0);
+          hud_text = m && !m->empty() ? Wide(*m) : L"Listening...  " + std::to_wstring(n ? *n / 60 : 0) + L":" + ((n && *n % 60 >= 10) ? L"" : L"0") + std::to_wstring(n ? *n % 60 : 0);
           hud_color = RGB(79, 70, 229);
         } else if (s && *s == "writing") { hud_text = m && !m->empty() ? Wide(*m) : L"Turning speech into text..."; hud_color = RGB(79, 70, 229); }
         else if (s && *s == "success") { hud_text = L"Done"; hud_color = RGB(16, 185, 129); }

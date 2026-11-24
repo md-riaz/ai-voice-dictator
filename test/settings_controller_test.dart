@@ -152,6 +152,8 @@ class FakeSettingsService implements SettingsService {
 }
 
 class PlaygroundDictation implements DictationService {
+  @override
+  void Function(String)? onLivePreview;
   bool started = false;
   @override
   Future<void> start({bool translate = false}) async {
@@ -545,7 +547,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Setup'));
     await tester.pumpAndSettle();
-    final toggle = find.text('Live HUD streaming preview');
+    final toggle = find.text('Live dictation streaming');
     await tester.scrollUntilVisible(
       toggle,
       250,
@@ -620,6 +622,63 @@ void main() {
     await tester.pumpAndSettle();
     expect(store.retention, 30);
     expect(find.text('30 days'), findsOneWidget);
+  });
+  testWidgets('history displays local dates and 12-hour times', (tester) async {
+    final store = FakeSettings()
+      ..testHistory = [
+        HistoryEntry(
+          text: 'Noon',
+          createdAt: DateTime(2026, 11, 24, 12, 5),
+          duration: Duration.zero,
+          afterStop: Duration(milliseconds: 4500),
+          geminiRequest: Duration(milliseconds: 3200),
+          technicalDetails: ['Request complete 3200ms'],
+        ),
+        HistoryEntry(
+          text: 'Midnight',
+          createdAt: DateTime(2026, 1, 2, 0, 9),
+          duration: Duration.zero,
+        ),
+        HistoryEntry(
+          text: 'Live',
+          createdAt: DateTime(2026, 1, 1),
+          duration: Duration.zero,
+          afterStop: Duration(seconds: 2),
+        ),
+      ];
+    final controller = SettingsController(
+      store: store,
+      service: FakeSettingsService(),
+      onShortcutChanged: (_, _, _) async {},
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ui.VeloraTheme.light(),
+        home: SettingsView(controller: controller),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('History'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Processing details').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Request complete 3200ms'), findsOneWidget);
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('24/11/2026 12:05 PM'), findsOneWidget);
+    expect(find.textContaining('02/01/2026 12:09 AM'), findsOneWidget);
+    expect(
+      find.textContaining('Before request: 1.30s · Gemini request: 3.20s'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Processing timing unavailable'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('After stop: 2.00s · Gemini: live chunks'),
+      findsOneWidget,
+    );
   });
   testWidgets('older history can be loaded', (tester) async {
     final store = FakeSettings()

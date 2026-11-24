@@ -30,6 +30,7 @@ class DictationController extends VeloraController {
   Completer<void>? _operationDone;
   bool _listening = false;
   bool processing = false;
+  bool _cancelRequested = false;
   String? _mode;
   Timer? _timer;
   Timer? _hudTimer;
@@ -82,7 +83,10 @@ class DictationController extends VeloraController {
         }
       case 'cancel':
         _mode = null;
-        if (_busy && !processing) await _operationDone?.future;
+        if (_busy && !processing) {
+          _cancelRequested = true;
+          await _operationDone?.future;
+        }
         await cancel();
     }
   }
@@ -116,7 +120,19 @@ class DictationController extends VeloraController {
   }
 
   Future<void> cancel() async {
-    if (!_listening) return;
+    if (processing) {
+      _cancelRequested = true;
+      dictation.cancelProcessing();
+      await desktop.hideHud();
+      await _operationDone?.future;
+      await desktop.setRecording(false);
+      return;
+    }
+    if (!_listening) {
+      _hudTimer?.cancel();
+      await desktop.hideHud();
+      return;
+    }
     _listening = false;
     recording.value = false;
     _mode = null;
@@ -141,6 +157,7 @@ class DictationController extends VeloraController {
       return;
     }
     _busy = true;
+    _cancelRequested = false;
     _operationDone = Completer<void>();
     _hudTimer?.cancel();
     try {
@@ -150,11 +167,35 @@ class DictationController extends VeloraController {
         hud.value = HudState.preparing;
         await desktop.updateHud(hud.value.name, message.value, seconds.value);
         await desktop.showHud();
+        final liveEnabled = !translate && settings.streamPreview();
+        dictation.onLivePreview = liveEnabled
+            ? (text) {
+                if (!_listening) return;
+                final display = text.trim().replaceAll(RegExp(r'\s+'), ' ');
+                message.value = display.length > 38
+                    ? '…${display.substring(display.length - 35)}'
+                    : display;
+                unawaited(
+                  desktop.updateHud(
+                    hud.value.name,
+                    message.value,
+                    seconds.value,
+                  ),
+                );
+              }
+            : null;
         await dictation.start(translate: translate);
+        if (_cancelRequested) {
+          await dictation.cancel();
+          await desktop.setRecording(false);
+          await desktop.hideHud();
+          return;
+        }
         _listening = true;
         recording.value = true;
         await desktop.setRecording(true);
         hud.value = HudState.listening;
+        if (liveEnabled) message.value = 'Live: waiting for speech';
         await desktop.updateHud(hud.value.name, message.value, seconds.value);
         _levelTimer = Timer.periodic(const Duration(milliseconds: 120), (
           _,
@@ -186,37 +227,14 @@ class DictationController extends VeloraController {
         _listening = false;
         recording.value = false;
         processing = true;
-        await desktop.setRecording(false);
         hud.value = HudState.writing;
-        message.value = '';
+        message.value = dictation.onLivePreview != null
+            ? 'Finishing transcription…'
+            : '';
         await desktop.updateHud(hud.value.name, message.value, seconds.value);
-        var useStream = false;
-        try {
-          useStream = settings.streamPreview();
-        } catch (_) {
-          useStream = false;
-        }
-        await dictation.finish(
-          onChunk: useStream
-              ? (accumulated) {
-                  final text = accumulated.trim().replaceAll(
-                    RegExp(r'\s+'),
-                    ' ',
-                  );
-                  final display = text.length > 38
-                      ? '…${text.substring(text.length - 35)}'
-                      : text;
-                  message.value = display;
-                  unawaited(
-                    desktop.updateHud(
-                      hud.value.name,
-                      message.value,
-                      seconds.value,
-                    ),
-                  );
-                }
-              : null,
-        );
+        await dictation.finish();
+        if (_cancelRequested) return;
+        await desktop.setRecording(false);
         if (dictation.historySaveFailed) {
           hud.value = HudState.error;
           message.value = 'Text sent, but history could not be saved.';
@@ -232,6 +250,11 @@ class DictationController extends VeloraController {
         );
       }
     } catch (e) {
+      if (_cancelRequested) {
+        await desktop.setRecording(false);
+        await desktop.hideHud();
+        return;
+      }
       debugPrint(
         'Dictation failed: ${e is DictationException ? e.code : e.runtimeType}',
       );
