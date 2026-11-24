@@ -8,6 +8,15 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 void main() {
+  test('request timeout scales with duration and stays bounded', () {
+    expect(geminiRequestTimeout(-1), const Duration(seconds: 30));
+    expect(geminiRequestTimeout(5), const Duration(seconds: 30));
+    expect(geminiRequestTimeout(15), const Duration(seconds: 30));
+    expect(geminiRequestTimeout(60), const Duration(seconds: 56));
+    expect(geminiRequestTimeout(300), const Duration(seconds: 200));
+    expect(geminiRequestTimeout(560), const Duration(seconds: 300));
+    expect(geminiRequestTimeout(2400), const Duration(seconds: 300));
+  });
   late Directory dir;
   late File audio;
   setUp(() async {
@@ -16,6 +25,23 @@ void main() {
     await audio.writeAsBytes([1, 2, 3]);
   });
   tearDown(() => dir.delete(recursive: true));
+
+  test('rejects oversized audio before any network request', () async {
+    final client = MockClient((_) async => fail('must not call network'));
+    final handle = await audio.open(mode: FileMode.write);
+    await handle.truncate(GeminiDictationService.maxAudioBytes + 1);
+    await handle.close();
+    await expectLater(
+      GeminiDictationService('secret', client: client).transcribe(audio, 300),
+      throwsA(
+        isA<DictationException>().having(
+          (e) => e.code,
+          'code',
+          'audio_too_large',
+        ),
+      ),
+    );
+  });
 
   test('streaming sends the key in a header and delivers chunks', () async {
     final client = MockClient((request) async {

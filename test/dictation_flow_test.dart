@@ -158,7 +158,7 @@ void main() {
   }
 
   test(
-    'stores final submitted duration after optional pause shortening',
+    'automatically shortens pauses and stores the final submitted duration',
     () async {
       const rate = 16000;
       final bytes = Uint8List(44 + rate * 4 * 2);
@@ -183,7 +183,6 @@ void main() {
         data.setInt16(44 + (i + rate * 3) * 2, 1000, Endian.little);
       }
       await file.writeAsBytes(bytes);
-      await settings.setShortenPauses(true);
       await runFlow(
         FlowDesktop(),
         capturedAudio: const Duration(seconds: 4),

@@ -82,10 +82,14 @@ class DictationService {
     try {
       await _checkPasswordField();
       DictationGuardrails.validateAudio(recording.file, recording.durationMs);
+      await shortenInternalPauses(recording.file);
       var submittedAudio = recording.submittedAudio;
-      if (settings.shortenPauses()) {
-        await shortenInternalPauses(recording.file);
-        submittedAudio = await normalizedWavDuration(recording.file);
+      if (submittedAudio != null) {
+        try {
+          submittedAudio = await normalizedWavDuration(recording.file);
+        } catch (_) {
+          submittedAudio = null;
+        }
       }
       final mode = _translate
           ? DictationLanguageMode.translate

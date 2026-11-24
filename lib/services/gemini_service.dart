@@ -4,11 +4,17 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 
 import '../guardrails.dart';
 import '../settings/settings_store.dart';
 
 enum DictationLanguageMode { auto, codeSwitching, translate }
+
+@visibleForTesting
+Duration geminiRequestTimeout(int durationSec) => Duration(
+  seconds: (20 + (durationSec.clamp(0, 467) * 0.6).round()).clamp(30, 300),
+);
 
 const String kDictationSystemInstruction = '''
 Turn the audio into polished, ready-to-send text using professional writing skills.
@@ -118,6 +124,7 @@ class GeminiDictationService {
     String targetLanguage = 'English',
     void Function(String)? onChunk,
   }) async {
+    final requestTimeout = geminiRequestTimeout(durationSec);
     if (apiKey.trim().isEmpty) {
       throw const DictationException(
         'key_missing',
@@ -141,48 +148,47 @@ class GeminiDictationService {
     if (length > maxAudioBytes) {
       throw const DictationException(
         'audio_too_large',
-        'Recording is too long.',
+        'Recording exceeds the 12 MiB inline audio limit.',
       );
     }
-    final bytes = await audioFile.readAsBytes();
-    if (bytes.length > maxAudioBytes) {
-      throw const DictationException(
-        'audio_too_large',
-        'Recording is too long.',
-      );
-    }
-    final payload = {
-      'system_instruction': {
-        'parts': [
-          {
-            'text': LanguagePromptBuilder.buildSystemPrompt(
-              mode: mode,
-              targetLanguage: targetLanguage,
-              systemPrompt: systemPrompt,
-            ),
-          },
-        ],
-      },
-      'contents': [
-        {
-          'role': 'user',
+    final client =
+        _client ??
+        IOClient(HttpClient()..connectionTimeout = const Duration(seconds: 25));
+    try {
+      final bytes = await audioFile.readAsBytes();
+      if (bytes.length > maxAudioBytes) {
+        throw const DictationException(
+          'audio_too_large',
+          'Recording exceeds the 12 MiB inline audio limit.',
+        );
+      }
+      final audioPart = {
+        'inline_data': {'mime_type': 'audio/wav', 'data': base64Encode(bytes)},
+      };
+      final payload = {
+        'system_instruction': {
           'parts': [
             {
-              'inline_data': {
-                'mime_type': 'audio/wav',
-                'data': base64Encode(bytes),
-              },
-            },
-            {
-              'text':
-                  'Transcribe accurately according to the system instructions.',
+              'text': LanguagePromptBuilder.buildSystemPrompt(
+                mode: mode,
+                targetLanguage: targetLanguage,
+                systemPrompt: systemPrompt,
+              ),
             },
           ],
         },
-      ],
-    };
-    final client = _client ?? http.Client();
-    try {
+        'contents': [
+          {
+            'role': 'user',
+            'parts': [
+              audioPart,
+              {
+                'text': 'Transcribe accurately according to the system instructions.',
+              },
+            ],
+          },
+        ],
+      };
       String? failure;
       for (final model in this.model == models.first ? models : [this.model]) {
         final body = jsonEncode({
@@ -194,6 +200,12 @@ class GeminiDictationService {
               'thinkingConfig': {'thinkingLevel': 'minimal'},
           },
         });
+        if (utf8.encode(body).length > 20000000) {
+          throw const DictationException(
+            'request_too_large',
+            'Audio and prompt exceed Gemini’s 20 MB inline request limit.',
+          );
+        }
         if (onChunk != null) {
           try {
             final request = http.Request(
@@ -209,11 +221,12 @@ class GeminiDictationService {
             request.body = body;
             final streamedResponse = await client
                 .send(request)
-                .timeout(const Duration(seconds: 25));
+                .timeout(requestTimeout);
             if (streamedResponse.statusCode == 200) {
               final accumulated = StringBuffer();
               await for (final line
                   in streamedResponse.stream
+                      .timeout(const Duration(seconds: 20))
                       .transform(utf8.decoder)
                       .transform(const LineSplitter())) {
                 if (line.startsWith('data: ')) {
@@ -266,7 +279,7 @@ class GeminiDictationService {
                   },
                   body: body,
                 )
-                .timeout(const Duration(seconds: 25));
+                .timeout(requestTimeout);
           } on TimeoutException {
             debugPrint('Gemini request timed out for $model');
             failure ??=

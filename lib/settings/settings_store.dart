@@ -171,9 +171,6 @@ class SettingsStore {
   bool streamPreview() => _prefs.getBool('stream_preview') ?? false;
   Future<void> setStreamPreview(bool value) async =>
       _prefs.setBool('stream_preview', value);
-  bool shortenPauses() => _prefs.getBool('shorten_pauses') ?? false;
-  Future<void> setShortenPauses(bool value) async =>
-      _prefs.setBool('shorten_pauses', value);
   int historyRetention() {
     final days = _prefs.getInt('history_retention_days') ?? 0;
     return [0, 30, 90, 365].contains(days) ? days : 0;

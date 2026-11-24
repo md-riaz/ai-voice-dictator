@@ -26,8 +26,6 @@ class FakeSettings implements SettingsStore {
   @override
   bool streamPreview() => false;
   @override
-  bool shortenPauses() => false;
-  @override
   Future<void> addHistory(
     String text,
     Duration duration, {

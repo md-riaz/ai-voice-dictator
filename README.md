@@ -62,6 +62,12 @@ To publish a new Windows release, update `version` in `pubspec.yaml`, push the c
 
 On first launch, open Setup, save a Gemini API key, and select and test a microphone. Home includes a playground: click its text box before dictating. Hold Ctrl+Win to dictate, or Ctrl+Win+Alt to translate, and release to finish. Press Ctrl+Win+Space to start hands-free and press it again to finish. Esc cancels recording. A separate non-activating overlay shows progress while the main window stays open. Use the close button or tray menu to keep the app in the system tray, reopen it, pause/resume, or exit.
 
-Setup offers an optional, default-off setting to shorten long internal pauses. It estimates background noise from low-energy audio frames, and shortens detected pauses over 1.5 seconds while keeping 400 ms after and 250 ms before speech. Low-contrast audio is left unchanged. Energy detection cannot reliably distinguish quiet speech from noise, so it can still remove speech; disable this option if preserving every sound is important. Audio processing happens locally; the resulting audio is sent to Gemini through the existing transcription flow.
+Audio processing automatically shortens detected low-energy pauses over 1.5 seconds while retaining 400 ms after and 250 ms before speech. Low-contrast audio is left unchanged. Energy detection cannot reliably distinguish quiet speech from noise and may remove quiet speech. Processing happens locally; the resulting audio is sent to Gemini through the existing transcription flow.
+
+### Recording and request limits
+
+Audio is sent inline to Gemini. Each recording is limited to **12 MiB before encoding**—approximately **6.5 minutes** at 16 kHz, mono, 16-bit PCM. Actual duration depends on the recorded sample rate and channel count. The limit is checked after recording stops; oversized recordings are rejected and their temporary audio is deleted, so keep longer dictations in shorter sections. Gemini's **20 MB total request limit** also includes the encoded audio and prompt; a very long prompt can reduce the usable audio length.
+
+Connecting to Gemini has a 25-second timeout. The initial response and non-streaming requests use a duration-based timeout of 30–300 seconds; a streaming response times out after 20 seconds without data. Retries and fallback models can make the total wait longer.
 
 Gemini can make mistakes. Review inserted text, especially numbers and technical terms. Transcripts remain in local history; recordings are temporary and deleted after processing. The transcript is also copied to the clipboard, including when the active window changes before insertion.

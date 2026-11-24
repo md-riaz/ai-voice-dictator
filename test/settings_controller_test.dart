@@ -35,11 +35,6 @@ class FakeSettings implements SettingsStore {
   bool savedStreamPreview = false;
   @override
   bool streamPreview() => savedStreamPreview;
-  bool savedShortenPauses = false;
-  @override
-  bool shortenPauses() => savedShortenPauses;
-  @override
-  Future<void> setShortenPauses(bool value) async => savedShortenPauses = value;
   @override
   Future<void> setStreamPreview(bool value) async => savedStreamPreview = value;
   String savedModel = SettingsStore.defaultModel;
@@ -323,6 +318,7 @@ void main() {
     service.validation.complete(200);
     await tester.pumpAndSettle();
     expect(find.text('Your workspace'), findsOneWidget);
+    expect(find.textContaining('Recording limit: 12 MiB'), findsOneWidget);
   });
   testWidgets('settings opens when device enumeration stalls', (tester) async {
     final service = FakeSettingsService()
@@ -508,6 +504,10 @@ void main() {
     expect(find.text('Speaking pace'), findsOneWidget);
     expect(find.text('Words per week'), findsOneWidget);
     expect(find.text('Productivity insights'), findsOneWidget);
+    expect(
+      find.textContaining('Both exclude transcription and paste time.'),
+      findsOneWidget,
+    );
   });
   testWidgets('stats view displays empty state when no history exists', (
     tester,
@@ -557,12 +557,6 @@ void main() {
     await tester.tap(toggle);
     await tester.pumpAndSettle();
     expect(store.savedStreamPreview, true);
-    final pauseToggle = find.text('Shorten long silent pauses');
-    await tester.ensureVisible(pauseToggle);
-    await tester.pumpAndSettle();
-    await tester.tap(pauseToggle);
-    await tester.pumpAndSettle();
-    expect(store.savedShortenPauses, true);
   });
   testWidgets('clear history requires confirmation', (tester) async {
     final store = FakeSettings();

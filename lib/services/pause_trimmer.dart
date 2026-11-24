@@ -15,7 +15,7 @@ Future<void> shortenInternalPauses(File file) async {
     await temporary.writeAsBytes(result, flush: true);
     await temporary.rename(file.path);
   } catch (_) {
-    // Keep the original recording if optional processing fails.
+    // Keep the original recording if pause processing fails.
   } finally {
     try {
       if (temporary != null && await temporary.exists()) {

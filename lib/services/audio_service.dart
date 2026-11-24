@@ -30,7 +30,10 @@ Future<({Duration captured, Duration submitted})> normalizeRecordedWav(
   File file,
 ) async {
   if (await file.length() > 12 * 1024 * 1024) {
-    throw const DictationException('audio_too_large', 'Recording is too long.');
+    throw const DictationException(
+      'audio_too_large',
+      'Recording exceeds the 12 MiB inline audio limit.',
+    );
   }
   final bytes = await file.readAsBytes();
   final data = ByteData.sublistView(bytes);

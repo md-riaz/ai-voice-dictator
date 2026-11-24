@@ -57,7 +57,6 @@ class SettingsController extends VeloraController {
   String language = 'auto';
   bool typeText = false;
   bool streamPreview = false;
-  bool shortenPauses = false;
   String shortcut = 'Ctrl+Win';
   String translationShortcut = 'Ctrl+Win+Alt';
   String handsFreeKey = 'Space';
@@ -122,7 +121,6 @@ class SettingsController extends VeloraController {
         language = store.language();
         typeText = store.typeText();
         streamPreview = store.streamPreview();
-        shortenPauses = store.shortenPauses();
         shortcut = store.shortcut();
         translationShortcut = store.translationShortcut();
         handsFreeKey = store.handsFreeKey();
@@ -217,15 +215,6 @@ class SettingsController extends VeloraController {
       _updateState(
         () => pageError = 'Could not save streaming preview setting.',
       );
-    }
-  }
-
-  Future<void> setShortenPauses(bool value) async {
-    try {
-      await store.setShortenPauses(value);
-      _updateState(() => shortenPauses = value);
-    } catch (_) {
-      _updateState(() => pageError = 'Could not save pause setting.');
     }
   }
 

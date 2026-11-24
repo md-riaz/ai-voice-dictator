@@ -798,6 +798,13 @@ class _SettingsViewState extends State<SettingsView> {
                                     ),
                                     const SizedBox(height: 8),
                                     const Text('Esc  ·  Cancel dictation'),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'Recording limit: 12 MiB (about 6.5 minutes at 16 kHz mono). Longer recordings may be rejected; the limit depends on the audio format.',
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        color: colors.onSurfaceVariant,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -855,6 +862,20 @@ class _SettingsViewState extends State<SettingsView> {
                                       Icons.mic_none_rounded,
                                       'Microphone',
                                       'Select an input and check your audio level.',
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Recordings are limited to 12 MiB before encoding (about 6.5 minutes at 16 kHz mono). Gemini requests are limited to 20 MB including the prompt.',
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        color: colors.onSurfaceVariant,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Processing requests can wait 30–300 seconds depending on recording length; retries may take longer.',
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        color: colors.onSurfaceVariant,
+                                      ),
                                     ),
                                     const SizedBox(height: 20),
                                     Text(
@@ -1000,17 +1021,6 @@ class _SettingsViewState extends State<SettingsView> {
                                       ),
                                       value: controller.streamPreview,
                                       onChanged: controller.setStreamPreview,
-                                    ),
-                                    SwitchListTile(
-                                      contentPadding: EdgeInsets.zero,
-                                      title: const Text(
-                                        'Shorten long silent pauses',
-                                      ),
-                                      subtitle: const Text(
-                                        'Shorten low-energy pauses. Quiet speech may be removed; audio is sent only to Gemini.',
-                                      ),
-                                      value: controller.shortenPauses,
-                                      onChanged: controller.setShortenPauses,
                                     ),
                                   ],
                                 ),
@@ -1463,7 +1473,7 @@ class _SettingsViewState extends State<SettingsView> {
                     icon: Icons.info_outline_rounded,
                     title: 'Time saved calculation',
                     detail:
-                        'Compares speaking pace against average typing speed (~40 WPM). Dictating at ${stats.speakingWpm > 0 ? stats.speakingWpm : 140} WPM is roughly ${stats.speedMultiplier > 1 ? stats.speedMultiplier.toStringAsFixed(1) : '3.5'}x faster than typing.',
+                        'Speaking pace uses the recording time, including pauses. Time saved is an estimate compared with typing at 40 WPM. Both exclude transcription and paste time.',
                   ),
                 ],
               ),
