@@ -35,6 +35,11 @@ class FakeSettings implements SettingsStore {
   bool savedStreamPreview = false;
   @override
   bool streamPreview() => savedStreamPreview;
+  bool savedShortenPauses = false;
+  @override
+  bool shortenPauses() => savedShortenPauses;
+  @override
+  Future<void> setShortenPauses(bool value) async => savedShortenPauses = value;
   @override
   Future<void> setStreamPreview(bool value) async => savedStreamPreview = value;
   String savedModel = SettingsStore.defaultModel;
@@ -552,6 +557,12 @@ void main() {
     await tester.tap(toggle);
     await tester.pumpAndSettle();
     expect(store.savedStreamPreview, true);
+    final pauseToggle = find.text('Shorten long silent pauses');
+    await tester.ensureVisible(pauseToggle);
+    await tester.pumpAndSettle();
+    await tester.tap(pauseToggle);
+    await tester.pumpAndSettle();
+    expect(store.savedShortenPauses, true);
   });
   testWidgets('clear history requires confirmation', (tester) async {
     final store = FakeSettings();

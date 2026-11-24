@@ -3,6 +3,7 @@ import 'dart:io';
 import '../guardrails.dart';
 import '../settings/settings_store.dart';
 import 'audio_service.dart';
+import 'pause_trimmer.dart';
 import 'desktop_service.dart';
 import 'gemini_service.dart';
 import 'password_guard.dart';
@@ -81,6 +82,11 @@ class DictationService {
     try {
       await _checkPasswordField();
       DictationGuardrails.validateAudio(recording.file, recording.durationMs);
+      var submittedAudio = recording.submittedAudio;
+      if (settings.shortenPauses()) {
+        await shortenInternalPauses(recording.file);
+        submittedAudio = await normalizedWavDuration(recording.file);
+      }
       final mode = _translate
           ? DictationLanguageMode.translate
           : DictationLanguageMode.auto;
@@ -114,6 +120,8 @@ class DictationService {
         await settings.addHistory(
           text,
           Duration(milliseconds: recording.durationMs),
+          capturedAudio: recording.capturedAudio,
+          submittedAudio: submittedAudio,
         );
       } catch (_) {
         historySaveFailed = true;

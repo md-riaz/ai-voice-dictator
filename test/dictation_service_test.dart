@@ -26,7 +26,14 @@ class FakeSettings implements SettingsStore {
   @override
   bool streamPreview() => false;
   @override
-  Future<void> addHistory(String text, Duration duration) async {
+  bool shortenPauses() => false;
+  @override
+  Future<void> addHistory(
+    String text,
+    Duration duration, {
+    Duration? capturedAudio,
+    Duration? submittedAudio,
+  }) async {
     events.add('history:$text');
   }
 
@@ -54,8 +61,12 @@ class EmptyAudio extends FakeAudio {
 
 class FailingHistorySettings extends FakeSettings {
   @override
-  Future<void> addHistory(String text, Duration duration) async =>
-      throw StateError('disk full');
+  Future<void> addHistory(
+    String text,
+    Duration duration, {
+    Duration? capturedAudio,
+    Duration? submittedAudio,
+  }) async => throw StateError('disk full');
 }
 
 class FakeDesktop implements DesktopService {

@@ -32,6 +32,19 @@ Uint8List wav({bool silent = false}) {
 }
 
 void main() {
+  test(
+    'measures captured and submitted PCM durations from sample counts',
+    () async {
+      final dir = await Directory.systemTemp.createTemp('audio_duration_');
+      addTearDown(() => dir.delete(recursive: true));
+      final file = File('${dir.path}/audio.wav');
+      await file.writeAsBytes(wav());
+      final result = await normalizeRecordedWav(file);
+      expect(result.captured, const Duration(seconds: 1));
+      expect(result.submitted, await normalizedWavDuration(file));
+      expect(result.submitted <= result.captured, isTrue);
+    },
+  );
   test('accepts extensible PCM WAV produced by Windows', () async {
     final dir = await Directory.systemTemp.createTemp('audio_test_');
     try {

@@ -12,11 +12,15 @@ class HistoryEntry {
     required this.text,
     required this.createdAt,
     required this.duration,
+    this.capturedAudio,
+    this.submittedAudio,
   });
   final int? id;
   final String text;
   final DateTime createdAt;
   final Duration duration;
+  final Duration? capturedAudio;
+  final Duration? submittedAudio;
   int get wordCount =>
       text.trim().isEmpty ? 0 : text.trim().split(RegExp(r'\s+')).length;
 }
@@ -43,18 +47,27 @@ class DictationStats {
     required this.totalDuration,
     required this.totalSessions,
     required this.days,
+    this.measuredSessions = 0,
+    this.capturedAudio = Duration.zero,
+    this.submittedAudio = Duration.zero,
   });
 
   const DictationStats.empty()
     : totalWords = 0,
       totalDuration = Duration.zero,
       totalSessions = 0,
-      days = const [];
+      days = const [],
+      measuredSessions = 0,
+      capturedAudio = Duration.zero,
+      submittedAudio = Duration.zero;
 
   final int totalWords;
   final Duration totalDuration;
   final int totalSessions;
   final List<DayStat> days;
+  final int measuredSessions;
+  final Duration capturedAudio;
+  final Duration submittedAudio;
 
   static const typingWpm = 40.0;
 
@@ -109,11 +122,21 @@ class SettingsStore {
       _database = await databaseFactoryFfi.openDatabase(
         path,
         options: OpenDatabaseOptions(
-          version: 1,
+          version: 2,
           onCreate: (db, version) async {
             await db.execute(
-              'CREATE TABLE history (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT NOT NULL, created_at INTEGER NOT NULL, duration_ms INTEGER NOT NULL)',
+              'CREATE TABLE history (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT NOT NULL, created_at INTEGER NOT NULL, duration_ms INTEGER NOT NULL, captured_us INTEGER, submitted_us INTEGER)',
             );
+          },
+          onUpgrade: (db, oldVersion, newVersion) async {
+            if (oldVersion < 2) {
+              await db.execute(
+                'ALTER TABLE history ADD COLUMN captured_us INTEGER',
+              );
+              await db.execute(
+                'ALTER TABLE history ADD COLUMN submitted_us INTEGER',
+              );
+            }
           },
         ),
       );
@@ -148,6 +171,9 @@ class SettingsStore {
   bool streamPreview() => _prefs.getBool('stream_preview') ?? false;
   Future<void> setStreamPreview(bool value) async =>
       _prefs.setBool('stream_preview', value);
+  bool shortenPauses() => _prefs.getBool('shorten_pauses') ?? false;
+  Future<void> setShortenPauses(bool value) async =>
+      _prefs.setBool('shorten_pauses', value);
   int historyRetention() {
     final days = _prefs.getInt('history_retention_days') ?? 0;
     return [0, 30, 90, 365].contains(days) ? days : 0;
@@ -250,13 +276,20 @@ class SettingsStore {
     await _prefs.setString('shortcut_config', '$hold|$translation|$key');
   }
 
-  Future<void> addHistory(String text, Duration duration) async {
+  Future<void> addHistory(
+    String text,
+    Duration duration, {
+    Duration? capturedAudio,
+    Duration? submittedAudio,
+  }) async {
     final now = DateTime.now();
     await _historyDatabase.transaction((txn) async {
       await txn.insert('history', {
         'text': text,
         'created_at': now.millisecondsSinceEpoch,
         'duration_ms': duration.inMilliseconds,
+        'captured_us': capturedAudio?.inMicroseconds,
+        'submitted_us': submittedAudio?.inMicroseconds,
       });
       final days = historyRetention();
       if (days > 0) {
@@ -286,12 +319,19 @@ class SettingsStore {
 
     final rows = await _historyDatabase.query(
       'history',
-      columns: ['created_at', 'duration_ms', 'text'],
+      columns: [
+        'created_at',
+        'duration_ms',
+        'text',
+        'captured_us',
+        'submitted_us',
+      ],
       orderBy: 'created_at ASC',
     );
 
     var totalWords = 0;
     var totalMs = 0;
+    var capturedUs = 0, submittedUs = 0, measured = 0;
     final dayWordsMap = <int, int>{};
     final dayDurationMap = <int, int>{};
 
@@ -305,6 +345,13 @@ class SettingsStore {
 
       totalWords += words;
       totalMs += durationMs;
+      final captured = row['captured_us'] as int?;
+      final submitted = row['submitted_us'] as int?;
+      if (captured != null && submitted != null) {
+        capturedUs += captured;
+        submittedUs += submitted;
+        measured++;
+      }
 
       if (createdAtMs >= startMs) {
         final entryDate = DateTime.fromMillisecondsSinceEpoch(createdAtMs);
@@ -333,6 +380,9 @@ class SettingsStore {
       totalDuration: Duration(milliseconds: totalMs),
       totalSessions: rows.length,
       days: days,
+      measuredSessions: measured,
+      capturedAudio: Duration(microseconds: capturedUs),
+      submittedAudio: Duration(microseconds: submittedUs),
     );
   }
 
@@ -353,6 +403,12 @@ class SettingsStore {
               row['created_at'] as int,
             ),
             duration: Duration(milliseconds: row['duration_ms'] as int),
+            capturedAudio: row['captured_us'] == null
+                ? null
+                : Duration(microseconds: row['captured_us'] as int),
+            submittedAudio: row['submitted_us'] == null
+                ? null
+                : Duration(microseconds: row['submitted_us'] as int),
           ),
         )
         .toList();

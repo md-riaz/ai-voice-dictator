@@ -8,8 +8,27 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
+Future<Duration> normalizedWavDuration(File file) async {
+  final bytes = await file.readAsBytes();
+  final data = ByteData.sublistView(bytes);
+  final channels = data.getUint16(22, Endian.little);
+  final rate = data.getUint32(24, Endian.little);
+  final sampleBytes = data.getUint32(40, Endian.little);
+  if (channels == 0 ||
+      rate == 0 ||
+      sampleBytes > bytes.length - 44 ||
+      sampleBytes % (channels * 2) != 0) {
+    throw const FormatException('Invalid normalized WAV');
+  }
+  return Duration(
+    microseconds: ((sampleBytes ~/ (channels * 2)) * 1000000 / rate).round(),
+  );
+}
+
 /// Preserves the recorder's negotiated 16-bit PCM sample rate and channels.
-Future<void> normalizeRecordedWav(File file) async {
+Future<({Duration captured, Duration submitted})> normalizeRecordedWav(
+  File file,
+) async {
   if (await file.length() > 12 * 1024 * 1024) {
     throw const DictationException('audio_too_large', 'Recording is too long.');
   }
@@ -158,12 +177,25 @@ Future<void> normalizeRecordedWav(File file) async {
     }
   }
   await file.writeAsBytes(output, flush: true);
+  return (
+    captured: Duration(microseconds: (samples * 1000000 / sampleRate).round()),
+    submitted: Duration(
+      microseconds: ((last - first + 1) * 1000000 / sampleRate).round(),
+    ),
+  );
 }
 
 class RecordedAudioResult {
-  const RecordedAudioResult({required this.file, required this.durationMs});
+  const RecordedAudioResult({
+    required this.file,
+    required this.durationMs,
+    this.capturedAudio,
+    this.submittedAudio,
+  });
   final File file;
   final int durationMs;
+  final Duration? capturedAudio;
+  final Duration? submittedAudio;
   int get durationSec => (durationMs / 1000).ceil();
 }
 
@@ -230,8 +262,13 @@ class AudioService {
       }
       final file = File(path);
       DictationGuardrails.validateAudio(file, duration);
-      await normalizeRecordedWav(file);
-      return RecordedAudioResult(file: file, durationMs: duration);
+      final metrics = await normalizeRecordedWav(file);
+      return RecordedAudioResult(
+        file: file,
+        durationMs: duration,
+        capturedAudio: metrics.captured,
+        submittedAudio: metrics.submitted,
+      );
     } catch (_) {
       final file = File(originalPath);
       if (await file.exists()) await file.delete();

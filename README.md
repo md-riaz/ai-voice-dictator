@@ -10,6 +10,20 @@ A preview of the workspace and its indigo theme.
 
 You can also dictate in other applications with the global shortcuts while a small floating overlay shows recording and processing progress. The completed transcript is copied to the clipboard and saved in local history.
 
+### Floating HUD in action
+
+**Listening:** The HUD shows the recording time and microphone activity.
+
+![Floating HUD listening while recording audio.](docs/images/hud-listening.png)
+
+**Processing:** The spinner shows that speech is being converted to text.
+
+![Floating HUD processing the recording.](docs/images/hud-processing.png)
+
+**Done:** The HUD confirms that processing has finished.
+
+![Floating HUD showing the completed state.](docs/images/hud-complete.png)
+
 ## Download
 
 Get the Windows x64 setup executable from [Releases](https://github.com/md-riaz/ai-voice-dictator/releases).
@@ -37,5 +51,7 @@ To publish a new Windows release, update `version` in `pubspec.yaml`, push the c
 ## Use
 
 On first launch, open Setup, save a Gemini API key, and select and test a microphone. Home includes a playground: click its text box before dictating. Hold Ctrl+Win to dictate, or Ctrl+Win+Alt to translate, and release to finish. Press Ctrl+Win+Space to start hands-free and press it again to finish. Esc cancels recording. A separate non-activating overlay shows progress while the main window stays open. Use the close button or tray menu to keep the app in the system tray, reopen it, pause/resume, or exit.
+
+Setup offers an optional, default-off setting to shorten long internal pauses. It estimates background noise from low-energy audio frames, and shortens detected pauses over 1.5 seconds while keeping 400 ms after and 250 ms before speech. Low-contrast audio is left unchanged. Energy detection cannot reliably distinguish quiet speech from noise, so it can still remove speech; disable this option if preserving every sound is important. Audio processing happens locally; the resulting audio is sent to Gemini through the existing transcription flow.
 
 Gemini can make mistakes. Review inserted text, especially numbers and technical terms. Transcripts remain in local history; recordings are temporary and deleted after processing. The transcript is also copied to the clipboard, including when the active window changes before insertion.

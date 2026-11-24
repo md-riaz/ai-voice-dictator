@@ -1001,6 +1001,17 @@ class _SettingsViewState extends State<SettingsView> {
                                       value: controller.streamPreview,
                                       onChanged: controller.setStreamPreview,
                                     ),
+                                    SwitchListTile(
+                                      contentPadding: EdgeInsets.zero,
+                                      title: const Text(
+                                        'Shorten long silent pauses',
+                                      ),
+                                      subtitle: const Text(
+                                        'Shorten low-energy pauses. Quiet speech may be removed; audio is sent only to Gemini.',
+                                      ),
+                                      value: controller.shortenPauses,
+                                      onChanged: controller.setShortenPauses,
+                                    ),
                                   ],
                                 ),
                               ),
@@ -1174,7 +1185,7 @@ class _SettingsViewState extends State<SettingsView> {
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                         subtitle: Text(
-                                          '${entry.createdAt.toLocal()} · ${entry.duration.inSeconds}s · ${entry.wordCount} words',
+                                          '${entry.createdAt.toLocal()} · Recording ${entry.duration.inSeconds}s · ${entry.wordCount} words\n${entry.capturedAudio == null || entry.submittedAudio == null ? 'Audio metrics unavailable' : 'Captured ${_formatAudioMetric(entry.capturedAudio!)} · Removed ${_formatAudioMetric(entry.capturedAudio! - entry.submittedAudio!)} · Submitted ${_formatAudioMetric(entry.submittedAudio!)}'}',
                                         ),
                                         trailing: IconButton(
                                           tooltip: 'Copy',
@@ -1422,8 +1433,19 @@ class _SettingsViewState extends State<SettingsView> {
                     theme,
                     colors,
                     icon: Icons.timer_outlined,
-                    title: 'Total audio recorded',
+                    title: 'Total recording time',
                     detail: _formatAudioTime(stats.totalDuration),
+                  ),
+                  const Divider(height: 20),
+                  _buildInsightRow(
+                    theme,
+                    colors,
+                    icon: Icons.graphic_eq,
+                    title:
+                        'Audio durations (${stats.measuredSessions}/${stats.totalSessions} sessions)',
+                    detail: stats.measuredSessions == 0
+                        ? 'Unavailable for older recordings'
+                        : 'Captured ${_formatAudioMetric(stats.capturedAudio)} · Removed ${_formatAudioMetric(stats.capturedAudio - stats.submittedAudio)} · Submitted ${_formatAudioMetric(stats.submittedAudio)}',
                   ),
                   const Divider(height: 20),
                   _buildInsightRow(
@@ -1635,4 +1657,7 @@ class _SettingsViewState extends State<SettingsView> {
     final secs = d.inSeconds % 60;
     return '${mins}m ${secs}s';
   }
+
+  String _formatAudioMetric(Duration d) =>
+      '${(d.inMicroseconds / 1000000).toStringAsFixed(2)}s';
 }

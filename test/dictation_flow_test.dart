@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:ai_voice_dictator/services/audio_service.dart';
 import 'package:ai_voice_dictator/services/desktop_service.dart';
@@ -14,8 +15,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class FlowAudio implements AudioService {
-  FlowAudio(this.file);
+  FlowAudio(this.file, {this.capturedAudio, this.submittedAudio});
   final File file;
+  final Duration? capturedAudio;
+  final Duration? submittedAudio;
   bool started = false;
   @override
   Future<void> start({String? deviceId}) async {
@@ -23,8 +26,12 @@ class FlowAudio implements AudioService {
   }
 
   @override
-  Future<RecordedAudioResult> stop() async =>
-      RecordedAudioResult(file: file, durationMs: 2000);
+  Future<RecordedAudioResult> stop() async => RecordedAudioResult(
+    file: file,
+    durationMs: 2000,
+    capturedAudio: capturedAudio,
+    submittedAudio: submittedAudio,
+  );
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -97,8 +104,14 @@ void main() {
     bool Function(String)? insertPlayground,
     void Function()? onTranscribe,
     String transcript = 'Hello world.',
+    Duration? capturedAudio,
+    Duration? submittedAudio,
   }) async {
-    final audio = FlowAudio(file);
+    final audio = FlowAudio(
+      file,
+      capturedAudio: capturedAudio,
+      submittedAudio: submittedAudio,
+    );
     final client = MockClient((request) async {
       onTranscribe?.call();
       expect(request.headers['x-goog-api-key'], 'test-key');
@@ -143,6 +156,44 @@ void main() {
       client.close();
     }
   }
+
+  test(
+    'stores final submitted duration after optional pause shortening',
+    () async {
+      const rate = 16000;
+      final bytes = Uint8List(44 + rate * 4 * 2);
+      final data = ByteData.sublistView(bytes);
+      void tag(int offset, String value) =>
+          bytes.setRange(offset, offset + value.length, value.codeUnits);
+      tag(0, 'RIFF');
+      data.setUint32(4, bytes.length - 8, Endian.little);
+      tag(8, 'WAVE');
+      tag(12, 'fmt ');
+      data.setUint32(16, 16, Endian.little);
+      data.setUint16(20, 1, Endian.little);
+      data.setUint16(22, 1, Endian.little);
+      data.setUint32(24, rate, Endian.little);
+      data.setUint32(28, rate * 2, Endian.little);
+      data.setUint16(32, 2, Endian.little);
+      data.setUint16(34, 16, Endian.little);
+      tag(36, 'data');
+      data.setUint32(40, bytes.length - 44, Endian.little);
+      for (var i = 0; i < rate; i++) {
+        data.setInt16(44 + i * 2, 1000, Endian.little);
+        data.setInt16(44 + (i + rate * 3) * 2, 1000, Endian.little);
+      }
+      await file.writeAsBytes(bytes);
+      await settings.setShortenPauses(true);
+      await runFlow(
+        FlowDesktop(),
+        capturedAudio: const Duration(seconds: 4),
+        submittedAudio: const Duration(seconds: 4),
+      );
+      final entry = (await settings.history()).single;
+      expect(entry.capturedAudio, const Duration(seconds: 4));
+      expect(entry.submittedAudio, const Duration(milliseconds: 2650));
+    },
+  );
 
   test('records, sends Gemini request, stores and pastes transcript', () async {
     final desktop = FlowDesktop();
