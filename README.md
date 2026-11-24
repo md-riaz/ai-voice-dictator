@@ -4,9 +4,17 @@ Windows 10/11 Flutter desktop dictation using a personal Gemini API key and Velo
 
 ## Preview
 
-A preview of the workspace and its indigo theme.
+The workspace includes a playground for dictation and shortcut settings.
 
-![Workspace with the dictation playground and shortcut settings.](docs/images/theme-workspace.png)
+![Workspace with the dictation playground and shortcut settings.](docs/images/workspace.png)
+
+The statistics screen shows dictation activity and audio duration coverage.
+
+![Dictation statistics with activity and productivity insights.](docs/images/stats.png)
+
+Setup manages the Gemini connection, model, and microphone.
+
+![Setup screen showing the Gemini connection and model settings.](docs/images/setup.png)
 
 You can also dictate in other applications with the global shortcuts while a small floating overlay shows recording and processing progress. The completed transcript is copied to the clipboard and saved in local history.
 
