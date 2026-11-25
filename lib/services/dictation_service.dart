@@ -265,6 +265,7 @@ class DictationService {
           afterStop: afterStop,
           geminiRequest: geminiRequest,
           technicalDetails: List.of(_audit),
+          mode: _translate ? 'translate' : 'dictate',
         );
       } catch (_) {
         historySaveFailed = true;

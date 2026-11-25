@@ -1367,7 +1367,7 @@ class _SettingsViewState extends State<SettingsView> {
     ColorScheme colors,
   ) {
     final stats = controller.stats;
-    if (stats.totalSessions == 0) {
+    if (stats.totalSessions == 0 && stats.activity.isEmpty) {
       return VeloraCard(
         elevated: false,
         color: colors.surfaceContainerLowest,
@@ -1401,6 +1401,26 @@ class _SettingsViewState extends State<SettingsView> {
       );
     }
 
+    final periodControls = Wrap(
+      spacing: 8,
+      children: [
+        for (final (value, label) in [
+          ('week', 'This week'),
+          ('month', 'This month'),
+          ('all', 'All time'),
+        ])
+          ChoiceChip(
+            label: Text(label),
+            selected: controller.statsPeriod == value,
+            onSelected: (_) => controller.refreshStats(period: value),
+          ),
+        IconButton(
+          tooltip: 'Refresh statistics',
+          onPressed: () => controller.refreshStats(),
+          icon: const Icon(Icons.refresh),
+        ),
+      ],
+    );
     final maxWords = stats.days.fold<int>(
       1,
       (max, day) => day.words > max ? day.words : max,
@@ -1432,13 +1452,75 @@ class _SettingsViewState extends State<SettingsView> {
             icon: Icons.speed_rounded,
             value: '${stats.speakingWpm} WPM',
             label: 'Speaking pace',
-            badge: '${stats.speedMultiplier.toStringAsFixed(1)}x faster',
+            badge: '${stats.speedMultiplier.toStringAsFixed(1)}x typing pace',
           ),
         ];
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            VeloraCard(
+              elevated: false,
+              color: colors.surfaceContainerLowest,
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${stats.streak}-day streak',
+                    style: theme.textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Consecutive active days through today or yesterday',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 3,
+                    runSpacing: 3,
+                    children: [
+                      for (final day in stats.activity)
+                        Tooltip(
+                          message:
+                              '${_formatHistoryDate(day.date).split(' ').first}: ${day.sessions} sessions',
+                          child: Semantics(
+                            label:
+                                '${_formatHistoryDate(day.date).split(' ').first}, ${day.sessions} sessions',
+                            child: Container(
+                              width: 12,
+                              height: 12,
+                              decoration: BoxDecoration(
+                                color: day.sessions == 0
+                                    ? colors.surfaceContainerHighest
+                                    : colors.primary.withValues(
+                                        alpha: day.sessions >= 4
+                                            ? 1
+                                            : .25 + day.sessions * .18,
+                                      ),
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Active on ${stats.activity.where((day) => day.sessions > 0).length} of the last 181 days',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            periodControls,
+            const SizedBox(height: 16),
+            Text(
+              '${stats.activeDays} active days in selected period',
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 16),
             if (isNarrow)
               Column(
                 children: [
@@ -1467,31 +1549,114 @@ class _SettingsViewState extends State<SettingsView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Text(
+                    'Dictate and translate',
+                    style: theme.textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 12),
+                  if (stats.totalWords > 0)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(5),
+                      child: Row(
+                        children: [
+                          if (stats.dictationWords > 0)
+                            Expanded(
+                              flex: stats.dictationWords,
+                              child: Container(
+                                height: 10,
+                                color: colors.primary,
+                              ),
+                            ),
+                          if (stats.translationWords > 0)
+                            Expanded(
+                              flex: stats.translationWords,
+                              child: Container(
+                                height: 10,
+                                color: colors.tertiary,
+                              ),
+                            ),
+                          if (stats.unknownWords > 0)
+                            Expanded(
+                              flex: stats.unknownWords,
+                              child: Container(
+                                height: 10,
+                                color: colors.outline,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Dictate: ${_formatNumber(stats.dictationWords)} words   |   Translate: ${_formatNumber(stats.translationWords)} words${stats.unknownWords > 0 ? '   |   Unclassified: ${_formatNumber(stats.unknownWords)} words' : ''}',
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    stats.unknownWords > 0
+                        ? 'Colors: dictate, translate and unclassified.'
+                        : 'Colors: dictate and translate.',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            VeloraCard(
+              elevated: false,
+              color: colors.surfaceContainerLowest,
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   _heading(
                     context,
                     Icons.bar_chart_rounded,
-                    'Words per week',
-                    'Your daily dictation volume over the last 7 days.',
+                    stats.days.length == 7 ? 'Words per week' : 'Words per day',
+                    'Last ${stats.days.length} days in the selected period. Colors show dictation and translation.',
                   ),
                   const SizedBox(height: 24),
-                  SizedBox(
-                    height: 160,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        for (final day in stats.days) ...[
-                          Expanded(
-                            child: _buildBarColumn(
-                              theme,
-                              colors,
-                              day: day,
-                              maxWords: maxWords,
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: SizedBox(
+                      width:
+                          stats.days.length * 52.0 > constraints.maxWidth - 48
+                          ? stats.days.length * 52.0
+                          : constraints.maxWidth - 48,
+                      height: 160,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          for (final day in stats.days) ...[
+                            Expanded(
+                              child: _buildBarColumn(
+                                theme,
+                                colors,
+                                day: day,
+                                maxWords: maxWords,
+                              ),
                             ),
-                          ),
-                          if (day != stats.days.last) const SizedBox(width: 8),
+                            if (day != stats.days.last)
+                              const SizedBox(width: 8),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
+                  ),
+                  ExpansionTile(
+                    title: const Text('Show daily table'),
+                    children: [
+                      for (final day in stats.days)
+                        ListTile(
+                          dense: true,
+                          title: Text(
+                            '${day.dayLabel} ${day.date.day}/${day.date.month}/${day.date.year}',
+                          ),
+                          subtitle: Text(
+                            'Dictate ${day.dictationWords} / Translate ${day.translationWords}${day.words - day.dictationWords - day.translationWords > 0 ? ' / Unclassified ${day.words - day.dictationWords - day.translationWords}' : ''}',
+                          ),
+                          trailing: Text('${day.words} words'),
+                        ),
+                    ],
                   ),
                 ],
               ),
@@ -1526,7 +1691,7 @@ class _SettingsViewState extends State<SettingsView> {
                     title:
                         'Audio durations (${stats.measuredSessions}/${stats.totalSessions} sessions)',
                     detail: stats.measuredSessions == 0
-                        ? 'Unavailable for older recordings'
+                        ? 'Audio duration unavailable'
                         : 'Captured ${_formatAudioMetric(stats.capturedAudio)} · Removed ${_formatAudioMetric(stats.capturedAudio - stats.submittedAudio)} · Submitted ${_formatAudioMetric(stats.submittedAudio)}',
                   ),
                   const Divider(height: 20),
@@ -1646,12 +1811,38 @@ class _SettingsViewState extends State<SettingsView> {
               alignment: Alignment.bottomCenter,
               child: Container(
                 height: 110 * heightRatio > 6 ? 110 * heightRatio : 6,
+                clipBehavior: Clip.antiAlias,
                 decoration: BoxDecoration(
-                  color: day.words > 0
-                      ? colors.primary
-                      : colors.surfaceContainerHighest,
+                  color: colors.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(4),
                 ),
+                child: day.words == 0
+                    ? null
+                    : Column(
+                        children: [
+                          if (day.translationWords > 0)
+                            Expanded(
+                              flex: day.translationWords,
+                              child: Container(color: colors.tertiary),
+                            ),
+                          if (day.dictationWords > 0)
+                            Expanded(
+                              flex: day.dictationWords,
+                              child: Container(color: colors.primary),
+                            ),
+                          if (day.words -
+                                  day.translationWords -
+                                  day.dictationWords >
+                              0)
+                            Expanded(
+                              flex:
+                                  day.words -
+                                  day.translationWords -
+                                  day.dictationWords,
+                              child: Container(color: colors.outline),
+                            ),
+                        ],
+                      ),
               ),
             ),
           ),

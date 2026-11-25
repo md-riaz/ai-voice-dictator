@@ -37,7 +37,13 @@ class DayStat {
     required this.date,
     required this.words,
     required this.duration,
+    this.sessions = 0,
+    this.dictationWords = 0,
+    this.translationWords = 0,
   });
+  final int sessions;
+  final int dictationWords;
+  final int translationWords;
   final DateTime date;
   final int words;
   final Duration duration;
@@ -57,6 +63,12 @@ class DictationStats {
     this.measuredSessions = 0,
     this.capturedAudio = Duration.zero,
     this.submittedAudio = Duration.zero,
+    this.activity = const [],
+    this.dictationWords = 0,
+    this.translationWords = 0,
+    this.unknownWords = 0,
+    this.activeDays = 0,
+    this.streak = 0,
   });
 
   const DictationStats.empty()
@@ -66,7 +78,13 @@ class DictationStats {
       days = const [],
       measuredSessions = 0,
       capturedAudio = Duration.zero,
-      submittedAudio = Duration.zero;
+      submittedAudio = Duration.zero,
+      activity = const [],
+      dictationWords = 0,
+      translationWords = 0,
+      unknownWords = 0,
+      activeDays = 0,
+      streak = 0;
 
   final int totalWords;
   final Duration totalDuration;
@@ -75,6 +93,8 @@ class DictationStats {
   final int measuredSessions;
   final Duration capturedAudio;
   final Duration submittedAudio;
+  final List<DayStat> activity;
+  final int dictationWords, translationWords, unknownWords, activeDays, streak;
 
   static const typingWpm = 40.0;
 
@@ -129,10 +149,10 @@ class SettingsStore {
       _database = await databaseFactoryFfi.openDatabase(
         path,
         options: OpenDatabaseOptions(
-          version: 4,
+          version: 5,
           onCreate: (db, version) async {
             await db.execute(
-              'CREATE TABLE history (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT NOT NULL, created_at INTEGER NOT NULL, duration_ms INTEGER NOT NULL, captured_us INTEGER, submitted_us INTEGER, after_stop_ms INTEGER, gemini_request_ms INTEGER, technical_details TEXT)',
+              'CREATE TABLE history (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT NOT NULL, created_at INTEGER NOT NULL, duration_ms INTEGER NOT NULL, captured_us INTEGER, submitted_us INTEGER, after_stop_ms INTEGER, gemini_request_ms INTEGER, technical_details TEXT, mode TEXT)',
             );
           },
           onUpgrade: (db, oldVersion, newVersion) async {
@@ -151,6 +171,9 @@ class SettingsStore {
               await db.execute(
                 'ALTER TABLE history ADD COLUMN gemini_request_ms INTEGER',
               );
+            }
+            if (oldVersion < 5) {
+              await db.execute('ALTER TABLE history ADD COLUMN mode TEXT');
             }
             if (oldVersion < 4) {
               await db.execute(
@@ -301,11 +324,13 @@ class SettingsStore {
     Duration? afterStop,
     Duration? geminiRequest,
     List<String> technicalDetails = const [],
+    String? mode,
   }) async {
     final now = DateTime.now();
     return _historyDatabase.transaction((txn) async {
       final id = await txn.insert('history', {
         'text': text,
+        'mode': mode,
         'created_at': now.millisecondsSinceEpoch,
         'duration_ms': duration.inMilliseconds,
         'captured_us': capturedAudio?.inMicroseconds,
@@ -343,7 +368,10 @@ class SettingsStore {
 
   Future<List<HistoryEntry>> history() => historyPage();
 
-  Future<DictationStats> stats({int daysCount = 7}) async {
+  Future<DictationStats> stats({
+    int daysCount = 7,
+    String period = 'all',
+  }) async {
     if (_database == null) {
       return const DictationStats.empty();
     }
@@ -360,15 +388,29 @@ class SettingsStore {
         'text',
         'captured_us',
         'submitted_us',
+        'mode',
       ],
       orderBy: 'created_at ASC',
     );
 
-    var totalWords = 0;
+    final periodStart = switch (period) {
+      'week' => DateTime(
+        today.year,
+        today.month,
+        today.day - today.weekday + 1,
+      ),
+      'month' => DateTime(today.year, today.month),
+      _ => null,
+    };
+    var totalWords = 0, totalSessions = 0;
+    var dictationWords = 0, translationWords = 0, unknownWords = 0;
     var totalMs = 0;
     var capturedUs = 0, submittedUs = 0, measured = 0;
     final dayWordsMap = <int, int>{};
     final dayDurationMap = <int, int>{};
+    final allActivity = <int, int>{};
+    final daySessions = <int, int>{};
+    final dayDictation = <int, int>{}, dayTranslation = <int, int>{};
 
     for (final row in rows) {
       final text = row['text'] as String;
@@ -378,6 +420,26 @@ class SettingsStore {
           ? 0
           : text.trim().split(RegExp(r'\s+')).length;
 
+      final entryDate = DateTime.fromMillisecondsSinceEpoch(createdAtMs);
+      final entryKey = DateTime(
+        entryDate.year,
+        entryDate.month,
+        entryDate.day,
+      ).millisecondsSinceEpoch;
+      allActivity[entryKey] = (allActivity[entryKey] ?? 0) + 1;
+      if (periodStart != null &&
+          createdAtMs < periodStart.millisecondsSinceEpoch) {
+        continue;
+      }
+      totalSessions++;
+      final mode = row['mode'];
+      if (mode == 'dictate') {
+        dictationWords += words;
+      } else if (mode == 'translate') {
+        translationWords += words;
+      } else {
+        unknownWords += words;
+      }
       totalWords += words;
       totalMs += durationMs;
       final captured = row['captured_us'] as int?;
@@ -395,25 +457,67 @@ class SettingsStore {
           entryDate.month,
           entryDate.day,
         ).millisecondsSinceEpoch;
+        daySessions[dayKey] = (daySessions[dayKey] ?? 0) + 1;
+        if (mode == 'dictate') {
+          dayDictation[dayKey] = (dayDictation[dayKey] ?? 0) + words;
+        }
+        if (mode == 'translate') {
+          dayTranslation[dayKey] = (dayTranslation[dayKey] ?? 0) + words;
+        }
         dayWordsMap[dayKey] = (dayWordsMap[dayKey] ?? 0) + words;
         dayDurationMap[dayKey] = (dayDurationMap[dayKey] ?? 0) + durationMs;
       }
     }
 
     final days = List.generate(daysCount, (i) {
-      final d = startDate.add(Duration(days: i));
+      final d = DateTime(
+        today.year,
+        today.month,
+        today.day - daysCount + 1 + i,
+      );
       final key = d.millisecondsSinceEpoch;
       return DayStat(
         date: d,
         words: dayWordsMap[key] ?? 0,
+        sessions: daySessions[key] ?? 0,
+        dictationWords: dayDictation[key] ?? 0,
+        translationWords: dayTranslation[key] ?? 0,
         duration: Duration(milliseconds: dayDurationMap[key] ?? 0),
       );
     });
 
+    final activity = List.generate(181, (i) {
+      final d = DateTime(today.year, today.month, today.day - 180 + i);
+      return DayStat(
+        date: d,
+        words: 0,
+        duration: Duration.zero,
+        sessions: allActivity[d.millisecondsSinceEpoch] ?? 0,
+      );
+    });
+    var streak = 0;
+    var d = today;
+    if (!allActivity.containsKey(d.millisecondsSinceEpoch)) {
+      d = DateTime(d.year, d.month, d.day - 1);
+    }
+    while (allActivity.containsKey(d.millisecondsSinceEpoch)) {
+      streak++;
+      d = DateTime(d.year, d.month, d.day - 1);
+    }
     return DictationStats(
+      activity: activity,
+      streak: streak,
+      activeDays: periodStart == null
+          ? allActivity.length
+          : allActivity.keys
+                .where((key) => key >= periodStart.millisecondsSinceEpoch)
+                .length,
+      dictationWords: dictationWords,
+      translationWords: translationWords,
+      unknownWords: unknownWords,
       totalWords: totalWords,
       totalDuration: Duration(milliseconds: totalMs),
-      totalSessions: rows.length,
+      totalSessions: totalSessions,
       days: days,
       measuredSessions: measured,
       capturedAudio: Duration(microseconds: capturedUs),

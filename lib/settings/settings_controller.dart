@@ -49,6 +49,8 @@ class SettingsController extends VeloraController {
   List<InputDevice> devices = [];
   List<HistoryEntry> history = [];
   DictationStats stats = const DictationStats.empty();
+  String statsPeriod = 'all';
+  int _statsVersion = 0;
   int historyRetention = 0;
   bool historyHasMore = false;
   bool historyLoadingMore = false;
@@ -161,7 +163,10 @@ class SettingsController extends VeloraController {
     final version = ++_historyVersion;
     try {
       final entries = await store.history();
-      final currentStats = await store.stats();
+      final currentStats = await store.stats(
+        daysCount: statsPeriod == 'week' ? 7 : 30,
+        period: statsPeriod,
+      );
       if (version != _historyVersion) return;
       _updateState(() {
         history = entries;
@@ -174,12 +179,20 @@ class SettingsController extends VeloraController {
     }
   }
 
-  Future<void> refreshStats() async {
+  Future<void> refreshStats({String? period}) async {
+    if (period != null) statsPeriod = period;
+    final version = ++_statsVersion;
+    final selected = statsPeriod;
+    _updateState(() {});
     try {
-      final currentStats = await store.stats();
+      final currentStats = await store.stats(
+        daysCount: selected == 'week' ? 7 : 30,
+        period: selected,
+      );
+      if (version != _statsVersion) return;
       _updateState(() => stats = currentStats);
     } catch (_) {
-      // Retain current stats if refresh fails.
+      _updateState(() => pageError = 'Could not load statistics.');
     }
   }
 

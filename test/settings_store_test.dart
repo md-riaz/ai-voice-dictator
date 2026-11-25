@@ -58,6 +58,86 @@ void main() {
       await store.close();
     },
   );
+  test(
+    'tracks modes, activity and date filters without guessing old modes',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      sqfliteFfiInit();
+      final dir = await Directory.systemTemp.createTemp('stats_modes_');
+      addTearDown(() => dir.delete(recursive: true));
+      final path = '${dir.path}/history.sqlite';
+      final store = SettingsStore();
+      await store.initialize(databasePath: path);
+      await store.addHistory(
+        'one two',
+        const Duration(seconds: 2),
+        mode: 'dictate',
+      );
+      await store.addHistory(
+        'three four five',
+        const Duration(seconds: 2),
+        mode: 'translate',
+      );
+      await store.addHistory('old', const Duration(seconds: 1));
+      final stats = await store.stats(period: 'week');
+      expect(stats.totalWords, 6);
+      expect(stats.totalSessions, 3);
+      expect(stats.dictationWords, 2);
+      expect(stats.translationWords, 3);
+      expect(stats.unknownWords, 1);
+      expect(stats.activeDays, 1);
+      expect(stats.streak, 1);
+      expect(stats.activity.last.sessions, 3);
+      expect(stats.days.last.dictationWords, 2);
+      expect(stats.days.last.translationWords, 3);
+      await store.close();
+    },
+  );
+
+  test('migrates version 4 and filters calendar periods', () async {
+    SharedPreferences.setMockInitialValues({});
+    sqfliteFfiInit();
+    final dir = await Directory.systemTemp.createTemp('stats_v4_');
+    addTearDown(() => dir.delete(recursive: true));
+    final path = '${dir.path}/history.sqlite';
+    final db = await databaseFactoryFfi.openDatabase(
+      path,
+      options: OpenDatabaseOptions(
+        version: 4,
+        onCreate: (db, _) => db.execute(
+          'CREATE TABLE history (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT NOT NULL, created_at INTEGER NOT NULL, duration_ms INTEGER NOT NULL, captured_us INTEGER, submitted_us INTEGER, after_stop_ms INTEGER, gemini_request_ms INTEGER, technical_details TEXT)',
+        ),
+      ),
+    );
+    final now = DateTime.now();
+    await db.insert('history', {
+      'text': 'old entry',
+      'created_at': DateTime(
+        now.year - 1,
+        now.month,
+        now.day,
+      ).millisecondsSinceEpoch,
+      'duration_ms': 1000,
+    });
+    await db.close();
+    final store = SettingsStore();
+    await store.initialize(databasePath: path);
+    await store.addHistory(
+      'new entry',
+      const Duration(seconds: 1),
+      mode: 'translate',
+    );
+    final all = await store.stats();
+    final month = await store.stats(period: 'month');
+    final week = await store.stats(period: 'week');
+    expect(all.totalSessions, 2);
+    expect(all.unknownWords, 2);
+    expect(month.totalSessions, 1);
+    expect(week.totalSessions, 1);
+    expect(month.translationWords, 2);
+    await store.close();
+  });
+
   test('upgrades version 2 history without losing entries', () async {
     SharedPreferences.setMockInitialValues({});
     sqfliteFfiInit();

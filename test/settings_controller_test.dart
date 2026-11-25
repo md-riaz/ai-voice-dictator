@@ -95,8 +95,12 @@ class FakeSettings implements SettingsStore {
               ),
             ];
   DictationStats? testStats;
+  String? lastStatsPeriod;
   @override
-  Future<DictationStats> stats({int daysCount = 7}) async {
+  Future<DictationStats> stats({
+    int daysCount = 7,
+    String period = 'all',
+  }) async {
     if (testStats != null) return testStats!;
     final entries = await history();
     var words = 0;
@@ -501,6 +505,11 @@ void main() {
     await tester.tap(find.text('Stats'));
     await tester.pumpAndSettle();
     expect(find.text('Dictation statistics'), findsOneWidget);
+    expect(find.text('This week'), findsOneWidget);
+    await tester.tap(find.text('This week'));
+    await tester.pumpAndSettle();
+    expect(controller.statsPeriod, 'week');
+    expect(find.text('Dictate and translate'), findsOneWidget);
     expect(find.text('Words dictated'), findsOneWidget);
     expect(find.text('Time saved'), findsOneWidget);
     expect(find.text('Speaking pace'), findsOneWidget);

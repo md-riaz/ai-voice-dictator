@@ -74,6 +74,8 @@ Audio is sent inline to Gemini. Each recording is limited to **12 MiB before enc
 
 Connecting to Gemini has a 25-second timeout. The initial response and non-streaming requests use a duration-based timeout of 30–300 seconds; a streaming response times out after 20 seconds without data. Retries and fallback models can make the total wait longer.
 
+Stats provide weekly, monthly and all-time totals, a 181-day activity view, a current streak, and a daily word chart (the latest 7 days for this week or 30 days for other periods). Dictation and translation modes are recorded with each session. Stats use retained local history and change when that history is deleted. Time saved compares recording duration with typing at 40 WPM and excludes processing and paste time. Word counts use whitespace-separated text and can be less representative for languages that do not use spaces.
+
 History shows the time from stopping the recording until the transcript is ready, including local preparation and any live chunk wait. For a complete-recording request it also shows the time before that request and the request time, including request preparation, upload, network, response, and retries. It is not a measurement of Gemini's server processing alone. These timings exclude clipboard, history storage, and paste. Live chunk processing overlaps recording, so it has no single full-request duration. Older entries do not have these timings.
 
 Gemini can make mistakes. Review inserted text, especially numbers and technical terms. Transcripts remain in local history; recordings are temporary and deleted after processing. The transcript is also copied to the clipboard, including when the active window changes before insertion.

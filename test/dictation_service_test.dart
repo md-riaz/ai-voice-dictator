@@ -35,6 +35,7 @@ class FakeSettings implements SettingsStore {
     Duration? afterStop,
     Duration? geminiRequest,
     List<String> technicalDetails = const [],
+    String? mode,
   }) async {
     events.add('history:$text');
     return 1;
@@ -75,6 +76,7 @@ class FailingHistorySettings extends FakeSettings {
     Duration? afterStop,
     Duration? geminiRequest,
     List<String> technicalDetails = const [],
+    String? mode,
   }) async => throw StateError('disk full');
 }
 
