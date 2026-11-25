@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:ai_voice_dictator/dictation_controller.dart';
+import 'package:ai_voice_dictator/guardrails.dart';
+import 'package:ai_voice_dictator/ui/floating_hud.dart';
 import 'package:ai_voice_dictator/services/audio_service.dart';
 import 'package:ai_voice_dictator/services/desktop_service.dart';
 import 'package:ai_voice_dictator/services/dictation_service.dart';
@@ -76,7 +78,35 @@ class ProcessingDictation extends DictationService {
   }
 }
 
+class FallbackDictation extends DictationService {
+  FallbackDictation(super.settings, super.audio, super.desktop);
+  @override
+  Future<void> start({bool translate = false}) async {}
+  @override
+  Future<void> finish({void Function(String)? onChunk}) async {
+    throw const DictationException(
+      'clipboard_fallback',
+      'Transcript copied to clipboard.',
+    );
+  }
+}
+
 void main() {
+  test('clipboard fallback displays a success notice', () async {
+    final settings = TestSettings();
+    final desktop = TestDesktop();
+    final controller = DictationController(
+      FallbackDictation(settings, TestAudio(), desktop),
+      settings,
+      desktop,
+    );
+    await controller.toggle();
+    await controller.toggle();
+    expect(controller.hud.value, HudState.success);
+    expect(controller.message.value, contains('clipboard'));
+    await controller.close();
+  });
+
   test('escape cancels processing and leaves controller ready', () async {
     final settings = TestSettings();
     final audio = TestAudio();

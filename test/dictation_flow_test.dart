@@ -1,3 +1,5 @@
+import 'package:ai_voice_dictator/guardrails.dart';
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -305,7 +307,13 @@ void main() {
     final desktop = FlowDesktop();
     await expectLater(
       runFlow(desktop, onTranscribe: () => desktop.target = 0),
-      throwsStateError,
+      throwsA(
+        isA<DictationException>().having(
+          (e) => e.code,
+          'code',
+          'clipboard_fallback',
+        ),
+      ),
     );
     expect(desktop.copied, 'Hello world.');
     expect((await settings.history()).single.text, 'Hello world.');
@@ -333,7 +341,13 @@ void main() {
     final desktop = FlowDesktop();
     await expectLater(
       runFlow(desktop, canPaste: () => false),
-      throwsStateError,
+      throwsA(
+        isA<DictationException>().having(
+          (e) => e.code,
+          'code',
+          'clipboard_fallback',
+        ),
+      ),
     );
     expect(desktop.copied, 'Hello world.');
     expect(desktop.pasted, isNull);

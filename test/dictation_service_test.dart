@@ -237,7 +237,20 @@ void main() {
       transcribe: (file, seconds, key, mode, target, model) async => 'Hello',
     );
     await service.start();
-    await expectLater(service.finish(), throwsStateError);
+    await expectLater(
+      service.finish(),
+      throwsA(
+        isA<DictationException>()
+            .having((e) => e.code, 'code', 'clipboard_fallback')
+            .having(
+              (e) => e.message,
+              'message',
+              contains(
+                'Could not paste automatically. Your text is copied to clipboard!',
+              ),
+            ),
+      ),
+    );
     expect(settings.events, ['copy:Hello', 'history:Hello']);
     expect(await file.exists(), false);
   });

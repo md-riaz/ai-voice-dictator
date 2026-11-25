@@ -269,7 +269,9 @@ class DictationController extends VeloraController {
         } catch (_) {}
       }
       await desktop.setRecording(false);
-      hud.value = HudState.error;
+      final clipboardFallback =
+          e is DictationException && e.code == 'clipboard_fallback';
+      hud.value = clipboardFallback ? HudState.success : HudState.error;
       message.value = e is DictationException
           ? e.message
           : e
@@ -281,7 +283,7 @@ class DictationController extends VeloraController {
       }
       await desktop.updateHud(hud.value.name, message.value, seconds.value);
       await desktop.showHud();
-      _scheduleHudHide(const Duration(seconds: 5));
+      _scheduleHudHide(Duration(milliseconds: clipboardFallback ? 4000 : 5000));
     } finally {
       processing = false;
       _busy = false;

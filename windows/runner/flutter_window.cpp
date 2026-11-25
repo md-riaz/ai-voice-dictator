@@ -464,7 +464,7 @@ bool FlutterWindow::OnCreate() {
           hud_text = m && !m->empty() ? Wide(*m) : L"Listening...  " + std::to_wstring(n ? *n / 60 : 0) + L":" + ((n && *n % 60 >= 10) ? L"" : L"0") + std::to_wstring(n ? *n % 60 : 0);
           hud_color = RGB(79, 70, 229);
         } else if (s && *s == "writing") { hud_text = m && !m->empty() ? Wide(*m) : L"Turning speech into text..."; hud_color = RGB(79, 70, 229); }
-        else if (s && *s == "success") { hud_text = L"Done"; hud_color = RGB(16, 185, 129); }
+        else if (s && *s == "success") { hud_text = m && !m->empty() ? Wide(*m) : L"Done"; hud_color = RGB(16, 185, 129); }
         else if (s && *s == "error") { hud_text = m && !m->empty() ? Wide(*m) : L"Error occurred"; hud_color = RGB(245, 158, 11); }
         UpdateHudAnimation();
         if (hud_window && IsWindowVisible(hud_window)) ShowHud();

@@ -285,21 +285,30 @@ class DictationService {
       await _checkPasswordField();
       _checkCancelled();
       if (canPaste != null && !canPaste!()) {
-        throw StateError(
-          'Focus a text field. The transcript is on the clipboard.',
+        throw DictationException(
+          'clipboard_fallback',
+          clipboardSaved
+              ? 'Could not paste automatically. Your text is copied to clipboard!'
+              : 'Transcript saved in history. Clipboard unavailable.',
         );
       }
       if (playgroundActive?.call() == true) {
         if (insertPlayground?.call(text) != true) {
-          throw StateError(
-            'The playground lost focus. The transcript is on the clipboard.',
+          throw DictationException(
+            'clipboard_fallback',
+            clipboardSaved
+                ? 'Could not paste automatically. Your text is copied to clipboard!'
+                : 'Transcript saved in history. Clipboard unavailable.',
           );
         }
       } else {
         final target = desktop.captureTarget();
         if (target == 0) {
-          throw StateError(
-            'No active window. The transcript is on the clipboard.',
+          throw DictationException(
+            'clipboard_fallback',
+            clipboardSaved
+                ? 'Could not paste automatically. Your text is copied to clipboard!'
+                : 'Transcript saved in history. Clipboard unavailable.',
           );
         }
         if (settings.typeText() || !clipboardSaved) {

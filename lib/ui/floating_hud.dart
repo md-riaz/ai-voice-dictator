@@ -34,7 +34,7 @@ class FloatingHudOverlay extends StatelessWidget {
       HudState.success => (
         const Color(0xFF10B981),
         Icons.check_circle_rounded,
-        'Done',
+        message.isNotEmpty ? message : 'Done',
       ),
       HudState.error => (
         const Color(0xFFF59E0B),
