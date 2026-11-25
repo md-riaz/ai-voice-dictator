@@ -5,6 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="AI Voice Dictator turns speech into text on Windows, with multilingual dictation and a small floating HUD.">
   <meta name="theme-color" content="#34308b">
+  <link rel="canonical" href="https://md-riaz.github.io/ai-voice-dictator/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="AI Voice Dictator">
+  <meta property="og:url" content="https://md-riaz.github.io/ai-voice-dictator/">
+  <meta property="og:title" content="AI Voice Dictator ? Speak naturally. Write anywhere.">
+  <meta property="og:description" content="Multilingual dictation and translation for Windows, powered by your Gemini API key.">
+  <meta property="og:image" content="https://md-riaz.github.io/ai-voice-dictator/images/social-preview.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="AI Voice Dictator workspace and voice-to-text for Windows">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="AI Voice Dictator ? Speak naturally. Write anywhere.">
+  <meta name="twitter:description" content="Multilingual dictation and translation for Windows, powered by your Gemini API key.">
+  <meta name="twitter:image" content="https://md-riaz.github.io/ai-voice-dictator/images/social-preview.jpg">
+
   <title>AI Voice Dictator — Speak naturally. Write anywhere.</title>
   <link rel="icon" href="images/favicon.png">
   <link rel="stylesheet" href="style.css">
@@ -12,7 +27,7 @@
 <body>
   <header class="site-header wrap">
     <a class="brand" href="#top"><img src="images/logo.svg" alt="" width="38" height="38"><span>AI Voice <b>Dictator</b></span></a>
-    <nav aria-label="Main navigation"><a href="#how-it-works">How it works</a><a href="#features">Features</a><a href="#privacy">Privacy</a></nav>
+    <nav aria-label="Main navigation"><a href="#how-it-works">How it works</a><a href="#features">Features</a><a href="#privacy">Privacy</a><a href="#faq">FAQ</a></nav>
     <a class="nav-link" href="https://github.com/md-riaz/ai-voice-dictator">GitHub <span aria-hidden="true">↗</span></a>
   </header>
 
@@ -21,7 +36,7 @@
       <div class="hero-copy">
         <div class="eyebrow"><span class="pulse"></span> YOUR VOICE, IN WRITING</div>
         <h1>Think it.<br><em>Say it.</em><br>It's written.</h1>
-        <p class="lead">Turn your thoughts into text wherever you work. Speak naturally in Bangla, English, or a mix of both.</p>
+        <p class="lead">Turn your thoughts into text wherever you work. Speak naturally in your language, switch between languages, or translate a thought as you speak.</p>
         <div class="actions"><a class="button primary" href="https://github.com/md-riaz/ai-voice-dictator/releases/latest">Download for Windows <span aria-hidden="true">↗</span></a><a class="button secondary" href="#how-it-works">See how it works <span aria-hidden="true">↓</span></a></div>
         <p class="platform">Windows 10 &amp; 11 <span>·</span> Bring your own Gemini API key</p>
       </div>
@@ -43,12 +58,46 @@
 
     <section id="features" class="section features-section"><div class="wrap">
       <div class="section-heading"><div><p class="eyebrow">SMALL APP. BIG IDEAS.</p><h2>Made to keep up<br><em>with your thoughts.</em></h2></div><p>Everything you need to go from an idea to words on your screen.</p></div>
-      <div class="feature-grid"><article class="feature feature-large"><span class="feature-symbol">Aa <i>আ</i></span><div><span class="feature-index">01 / LANGUAGE</span><h3>Speak the way you speak.</h3><p>Move between Bangla and English naturally. Use the translation shortcut when you need words in another language.</p></div></article><article class="feature"><span class="feature-symbol">◉</span><div><span class="feature-index">02 / FOCUS</span><h3>A little window into progress.</h3><p>The floating HUD shows listening, processing and completion while you work in other apps.</p></div></article><article class="feature"><span class="feature-symbol">↗</span><div><span class="feature-index">03 / INSIGHTS</span><h3>See your momentum.</h3><p>Explore your dictation history, speaking pace and audio duration statistics.</p></div></article><article class="feature feature-accent"><span class="feature-symbol">✳</span><div><span class="feature-index">04 / YOUR SETUP</span><h3>Make it yours.</h3><p>Choose your microphone, shortcuts, Gemini model and dictation prompt in Setup.</p></div></article></div>
+      <div class="feature-grid"><article class="feature feature-large"><span class="feature-symbol">Aa <i>আ</i></span><div><span class="feature-index">01 / LANGUAGE</span><h3>Speak the way you speak.</h3><p>Dictate in your language, mix languages in one thought, or use the translation shortcut to write in your chosen language.</p></div></article><article class="feature"><span class="feature-symbol">◉</span><div><span class="feature-index">02 / FOCUS</span><h3>A little window into progress.</h3><p>The floating HUD shows listening, processing and completion while you work in other apps.</p></div></article><article class="feature"><span class="feature-symbol">↗</span><div><span class="feature-index">03 / INSIGHTS</span><h3>See your momentum.</h3><p>Explore your dictation history, speaking pace and audio duration statistics.</p></div></article><article class="feature feature-accent"><span class="feature-symbol">✳</span><div><span class="feature-index">04 / YOUR SETUP</span><h3>Make it yours.</h3><p>Choose your microphone, shortcuts, Gemini model and dictation prompt in Setup.</p></div></article></div>
     </div></section>
+
+    <section class="section wrap modes-section" id="modes">
+      <div class="section-heading"><div><p class="eyebrow">TWO WAYS TO DICTATE</p><h2>Your pace.<br><em>Your choice.</em></h2></div><p>Choose how your words arrive. Both modes use your Gemini API key and a microphone.</p></div>
+      <div class="mode-grid">
+        <article class="mode-card"><span class="mode-label">COMPLETE DICTATION</span><h3>Speak the whole thought.</h3><p>Record your message, then let Gemini turn it into text with punctuation and formatting. Translation also uses your complete recording.</p><div class="mode-footer">Best for longer thoughts and polished messages <span aria-hidden="true">?</span></div></article>
+        <article class="mode-card mode-live"><span class="mode-label">EXPERIMENTAL ? LIVE DICTATION</span><h3>See words as you speak.</h3><p>Turn on live dictation in Setup to send short audio chunks while recording and type completed chunks as they arrive.</p><div class="mode-footer">Chunk timing depends on Gemini and your connection <span aria-hidden="true">?</span></div></article>
+      </div>
+      <p class="section-note">Live dictation uses more API requests and may affect punctuation. If live processing fails, the app can recover using the full recording. Review names, numbers and important details.</p>
+    </section>
+
+    <section class="section showcase-section"><div class="wrap showcase-grid">
+      <div class="showcase-copy"><p class="eyebrow">A LITTLE MORE CLARITY</p><h2>See how your<br><em>words add up.</em></h2><p class="body-copy">Find past transcripts in local history, track dictation activity and audio duration, and explore processing details when a response takes longer.</p><ul class="check-list"><li>Review and copy your previous transcripts</li><li>See recording, audio and processing timing</li><li>Choose how long to keep your history</li></ul></div>
+      <figure class="showcase-image"><img src="images/stats.png" alt="Statistics screen showing dictation activity and audio insights" loading="lazy"><figcaption>YOUR DICTATION, AT A GLANCE</figcaption></figure>
+    </div></section>
+
+    <section class="section wrap essentials-section"><div class="section-heading"><div><p class="eyebrow">BUILT FOR EVERYDAY WORK</p><h2>Less friction.<br><em>More flow.</em></h2></div><p>Small details that make voice input feel at home on your desktop.</p></div>
+      <div class="essentials-grid">
+        <article><span>?</span><h3>Shortcuts that fit</h3><p>Hold to dictate, use hands-free mode, or hold the translation shortcut. Configure your shortcuts in the app.</p></article>
+        <article><span>?</span><h3>Words where you work</h3><p>Send text to the active app, try typing mode for fields that block paste, or practice in the built-in playground.</p></article>
+        <article><span>?</span><h3>History and timing</h3><p>Keep transcripts locally and inspect processing times, including request and network delays.</p></article>
+        <article><span>?</span><h3>Your setup</h3><p>Choose your microphone, Gemini model, translation language and dictation prompt.</p></article>
+      </div>
+    </section>
 
     <section class="section wrap hud-section"><div><p class="eyebrow">THERE WHEN YOU NEED IT</p><h2>Quietly in<br><em>your corner.</em></h2><p class="body-copy">The floating HUD keeps you informed without taking over your screen. Listen, process, done.</p><a class="text-link" href="https://github.com/md-riaz/ai-voice-dictator#floating-hud-in-action">Explore the HUD <span aria-hidden="true">↗</span></a></div><div class="hud-stack"><figure><img src="images/hud-listening.png" alt="Listening HUD"><figcaption>01 &nbsp; LISTENING</figcaption></figure><figure><img src="images/hud-processing.png" alt="Processing HUD"><figcaption>02 &nbsp; PROCESSING</figcaption></figure><figure><img src="images/hud-complete.png" alt="Done HUD"><figcaption>03 &nbsp; DONE</figcaption></figure></div></section>
 
     <section id="privacy" class="privacy wrap"><div><p class="eyebrow">A NOTE ON YOUR DATA</p><h2>Your words.<br><em>Your workspace.</em></h2></div><div><p>Use your own Gemini API key. Audio is sent to Google’s Gemini API for transcription; your transcript history is stored locally and your key uses Windows secure storage.</p><a class="text-link" href="https://github.com/md-riaz/ai-voice-dictator#use">Read how it works <span aria-hidden="true">↗</span></a></div></section>
+
+    <section id="faq" class="section wrap faq-section"><div class="section-heading"><div><p class="eyebrow">GOOD TO KNOW</p><h2>Questions,<br><em>answered.</em></h2></div><p>The details to know before your first dictation.</p></div>
+      <div class="faq-list">
+        <details><summary>What do I need to get started?</summary><p>A Windows 10 or 11 PC, a microphone, an internet connection and your own Gemini API key. Download the installer, then save your key and select a microphone in Setup.</p></details>
+        <details><summary>Can I switch languages or translate?</summary><p>Yes. Dictate in multiple languages, including mixed-language speech. The translation shortcut uses your selected target language and processes the complete recording.</p></details>
+        <details><summary>How does live dictation work?</summary><p>Experimental live dictation sends short audio chunks while you speak and types each completed chunk. Response speed depends on Gemini and your connection; additional requests can use more API quota.</p></details>
+        <details><summary>How long can I record?</summary><p>Each recording is limited to 12 MiB before encoding, about 6.5 minutes at 16 kHz mono. Actual duration depends on the audio format. Keep longer dictations in shorter sections.</p></details>
+        <details><summary>Where do my recordings and transcripts go?</summary><p>Audio is sent to Google?s Gemini API. Transcripts are kept in local history and copied to your clipboard; release builds delete temporary recordings after processing. You can change history retention or clear history in the app.</p></details>
+        <details><summary>Does it work offline?</summary><p>No. The app needs an internet connection to send audio to Gemini for transcription.</p></details>
+      </div>
+    </section>
 
     <section class="cta wrap"><div><p class="eyebrow">READY WHEN YOU ARE</p><h2>Your next thought<br><em>is already on its way.</em></h2><p>Download AI Voice Dictator and let your ideas do the talking.</p><a class="button light" href="https://github.com/md-riaz/ai-voice-dictator/releases/latest">Download for Windows <span aria-hidden="true">↗</span></a></div><div class="cta-mark" aria-hidden="true">〰<span>→</span><br>≡</div></section>
   </main>
